@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
-const ChartGenerateComponent: React.FC = () => {
+const ChartGenerateComp: React.FC = () => {
     const [imgSrc, setImgSrc] = useState<string>('');
 
     useEffect(() => {
@@ -32,4 +32,4 @@ const ChartGenerateComponent: React.FC = () => {
     );
 };
 
-export default ChartGenerateComponent;
+export default ChartGenerateComp;

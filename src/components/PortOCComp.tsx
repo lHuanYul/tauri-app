@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const PortOCComponent = () => {
+const PortOCComp = () => {
     // ports：可用埠清單
     // list of available ports
     const [ports, setPorts] = useState<string[]>([]);
@@ -109,4 +109,4 @@ const PortOCComponent = () => {
     );
 };
 
-export default PortOCComponent;
+export default PortOCComp;

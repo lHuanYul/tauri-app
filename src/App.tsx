@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import PortOCComponent from './components/PortOCComponent';
-import SerialComponent from './components/SerialComponent';
-import PageSelectComponent from './components/PageSelectComponent';
-import ChartGenerateComponent from './components/ChartGenerateComponent';
-import MapGeneratorComponent from './components/MapGeneratorComponent';
-import MapDisplayComponent from './components/MapDisplayComponent';
+import PortOCComp from './components/PortOCComp';
+import SerialComp from './components/SerialComp';
+import PageSelectComp from './components/PageSelectComp';
+import ChartGenerateComp from './components/ChartGenerateComp';
+import MapGeneratorComp from './components/MapGeneratorComp';
+import MapDisplayComp from './components/MapDisplayComp';
 
 const App = () => {
     /*useEffect(() => {
@@ -28,19 +28,19 @@ const App = () => {
     let content;
     switch (pageName) {
         case "open_close_port":
-            content = <PortOCComponent />;
+            content = <PortOCComp />;
             break;
         case "port_transmit":
-            content = <SerialComponent />;
+            content = <SerialComp />;
             break;
         case "chart_generate":
-            content = <ChartGenerateComponent />;
+            content = <ChartGenerateComp />;
             break;
         case "map_generate":
-            content = <MapGeneratorComponent />;
+            content = <MapGeneratorComp />;
             break;
         case "test":
-            content = <><MapDisplayComponent /></>;
+            content = <><MapDisplayComp /></>;
             break;
         default:
             content = <div>Page Not Found</div>;
@@ -52,7 +52,7 @@ const App = () => {
             <aside className="
                 text-gray-400 text-center text-xl w-64 h-screen border-r-2 bg-gray-800 border-gray-600"
             >
-                <PageSelectComponent pageName={pageName} setPageName={setPageName} />
+                <PageSelectComp pageName={pageName} setPageName={setPageName} />
             </aside>
             <main className="
                 text-black bg-gray-300 w-full md:text-3xl p-4 space-y-4

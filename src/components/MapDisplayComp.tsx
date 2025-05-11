@@ -9,7 +9,7 @@ interface MapNode { id: number; name: string; connect: { pos: number; len: numbe
 type NodeType = { id: string; label: string; x: number; y: number };
 type LinkType = { source: string; target: string; label: string };
 
-const MapDisplayComponent: React.FC = () => {
+const MapDisplayComp: React.FC = () => {
     const width = 800;
     const height = 600;
     const centerX = width / 2;
@@ -69,4 +69,4 @@ const MapDisplayComponent: React.FC = () => {
     );
 };
 
-export default MapDisplayComponent;
+export default MapDisplayComp;
