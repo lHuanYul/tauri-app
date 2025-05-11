@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import DarkModeToggle from './dark_mode';
 
 interface PageSelectProps {

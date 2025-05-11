@@ -4,8 +4,8 @@ import PortOCComponent from './components/port_oc';
 import SerialComponent from './components/serial';
 import PageSelect from './components/page_select';
 import ChartGenerateComponent from './components/chart_generate';
-import MapGenerateComponent from './components/map';
-import RouteMap from './components/test';
+import MapGeneratorComponent from './components/map_generator';
+import RouteMap from './components/map_display';
 
 const App = () => {
     /*useEffect(() => {
@@ -37,7 +37,7 @@ const App = () => {
             content = <ChartGenerateComponent />;
             break;
         case "map_generate":
-            content = <MapGenerateComponent />;
+            content = <MapGeneratorComponent />;
             break;
         case "test":
             content = <><RouteMap /></>;

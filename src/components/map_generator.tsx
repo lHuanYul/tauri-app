@@ -9,7 +9,7 @@ interface MappingItem {
     connect: { pos: number; len: number }[]; // pos/len 陣列 / Array of pos/len pairs
 }
 
-const MapGenerateComponent: React.FC = () => {
+const MapGeneratorComponent: React.FC = () => {
     // 常數：位置與長度上下限
     // Constants: max values for pos and len
     const U16_MAX = 65535; // 16 位元上限 / 16-bit max
@@ -242,4 +242,4 @@ const MapGenerateComponent: React.FC = () => {
     );
 };
 
-export default MapGenerateComponent;
+export default MapGeneratorComponent;

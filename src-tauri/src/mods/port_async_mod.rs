@@ -259,7 +259,7 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
 #[tauri::command]
 /// Tauri command: 測試封包寫入與讀取<br>
 /// Tauri command: test packet write and read
-pub async fn serial_command(app: AppHandle) -> Result<String, String> {
+pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
     let packet = UartPacket::new(vec![1,2,3,4,5,6,7,8,9,10,11,12])?;
 
@@ -268,5 +268,5 @@ pub async fn serial_command(app: AppHandle) -> Result<String, String> {
         error!("{}", e);
         e.clone()
     })?;
-    Ok("Finish".to_string())
+    Ok("Push finish".to_string())
 }

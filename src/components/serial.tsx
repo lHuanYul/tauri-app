@@ -7,7 +7,7 @@ const SerialComponent = () => {
 
     const serial_c = async () => {
         try {
-            const result = await invoke("serial_command");
+            const result = await invoke("cmd_serial_test");
             setResponse(result as string);
         } catch (error: any) {
             setResponse(`錯誤：${error}`);

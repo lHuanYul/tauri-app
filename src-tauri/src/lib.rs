@@ -24,7 +24,7 @@ use mods::{
     }, matlab_mod::{
         run_engine_plot, MatlabEngine
     }, packet_mod::TrReBuffer, port_async_mod::{
-        cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, serial_command, PortAsyncManager
+        cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test, PortAsyncManager
     }
 };
 
@@ -70,7 +70,7 @@ pub fn run() {
             cmd_check_port_open_async,
             cmd_open_port_async,
             cmd_close_port_async,
-            serial_command,
+            cmd_serial_test,
             map_load,
             map_save,
             chart_generate,
