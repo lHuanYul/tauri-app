@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import PortOCComponent from './components/port_oc';
 import SerialComponent from './components/serial';
 import PageSelect from './components/page_select';
 import ChartGenerateComponent from './components/chart_generate';
 import MapGenerateComponent from './components/map';
-import { invoke } from '@tauri-apps/api/core';
+import RouteMap from './components/test';
 
 const App = () => {
     /*useEffect(() => {
@@ -12,7 +13,7 @@ const App = () => {
     }, [])*/
 
     const [pageName, setPageName] = useState(
-        () => sessionStorage.getItem("pageName") || "open_close_port"
+        () => localStorage.getItem("pageName") || "open_close_port"
     );
 
     useEffect(() => {
@@ -26,9 +27,6 @@ const App = () => {
 
     let content;
     switch (pageName) {
-        case "test":
-            content = <><MapGenerateComponent /></>;
-            break;
         case "open_close_port":
             content = <PortOCComponent />;
             break;
@@ -40,6 +38,9 @@ const App = () => {
             break;
         case "map_generate":
             content = <MapGenerateComponent />;
+            break;
+        case "test":
+            content = <><RouteMap /></>;
             break;
         default:
             content = <div>Page Not Found</div>;
