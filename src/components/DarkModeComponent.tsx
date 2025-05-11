@@ -4,7 +4,7 @@ interface DarkModeToggleProps {
     className?: string;
 }
 
-const DarkModeToggle = ({ className }: DarkModeToggleProps) => {
+const DarkModeComponent = ({ className }: DarkModeToggleProps) => {
     const [isDark, setIsDark] = useState(() => {
         const saved = localStorage.getItem('darkTheme');
         return saved ? JSON.parse(saved) : false;
@@ -30,4 +30,4 @@ const DarkModeToggle = ({ className }: DarkModeToggleProps) => {
     );
 };
 
-export default DarkModeToggle;
+export default DarkModeComponent;

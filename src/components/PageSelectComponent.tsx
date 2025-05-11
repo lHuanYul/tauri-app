@@ -1,11 +1,11 @@
-import DarkModeToggle from './dark_mode';
+import DarkModeComponent from './DarkModeComponent';
 
 interface PageSelectProps {
     pageName: string;
     setPageName: React.Dispatch<React.SetStateAction<string>>;
 }
 
-const PageSelect = ({ pageName, setPageName }: PageSelectProps) => {
+const PageSelectComponent = ({ pageName, setPageName }: PageSelectProps) => {
     const handleASBClick = async () => {
     };
     const handlePOCClick = () => {
@@ -49,7 +49,7 @@ const PageSelect = ({ pageName, setPageName }: PageSelectProps) => {
                     </div>
                 </button>
                 <div className="border-r-2 border-gray-600"></div>
-                <DarkModeToggle className="py-2 px-4 w-full text-gray-300 hover:bg-gray-700" />
+                <DarkModeComponent className="py-2 px-4 w-full text-gray-300 hover:bg-gray-700" />
             </div>
             <div className="border-b-2 border-gray-600"></div>
             <button onClick={handlePOCClick} className={pageName === "open_close_port" ? "page_select-button_list-select" : "page_select-button_list-defalt"}>
@@ -76,4 +76,4 @@ const PageSelect = ({ pageName, setPageName }: PageSelectProps) => {
     );
 };
 
-export default PageSelect;
+export default PageSelectComponent;

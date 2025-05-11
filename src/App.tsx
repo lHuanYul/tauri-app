@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import PortOCComponent from './components/port_oc';
-import SerialComponent from './components/serial';
-import PageSelect from './components/page_select';
-import ChartGenerateComponent from './components/chart_generate';
-import MapGeneratorComponent from './components/map_generator';
-import RouteMap from './components/map_display';
+import PortOCComponent from './components/PortOCComponent';
+import SerialComponent from './components/SerialComponent';
+import PageSelectComponent from './components/PageSelectComponent';
+import ChartGenerateComponent from './components/ChartGenerateComponent';
+import MapGeneratorComponent from './components/MapGeneratorComponent';
+import MapDisplayComponent from './components/MapDisplayComponent';
 
 const App = () => {
     /*useEffect(() => {
@@ -40,7 +40,7 @@ const App = () => {
             content = <MapGeneratorComponent />;
             break;
         case "test":
-            content = <><RouteMap /></>;
+            content = <><MapDisplayComponent /></>;
             break;
         default:
             content = <div>Page Not Found</div>;
@@ -52,7 +52,7 @@ const App = () => {
             <aside className="
                 text-gray-400 text-center text-xl w-64 h-screen border-r-2 bg-gray-800 border-gray-600"
             >
-                <PageSelect pageName={pageName} setPageName={setPageName} />
+                <PageSelectComponent pageName={pageName} setPageName={setPageName} />
             </aside>
             <main className="
                 text-black bg-gray-300 w-full md:text-3xl p-4 space-y-4
