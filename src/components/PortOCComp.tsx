@@ -13,7 +13,8 @@ const PortOCComp = () => {
     // isOpen：埠是否已開啟
     // whether the port is open
     const [isOpen, setIsOpen] = useState(false);
-    // response：後端命令回傳訊息 / backend command response message
+    // response：後端命令回傳訊息
+    // backend command response message
     const [response, setResponse] = useState(
         () => sessionStorage.getItem("OCResponse") || ""
     );

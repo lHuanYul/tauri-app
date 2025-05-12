@@ -11,14 +11,20 @@ use super::log_mod::CODE_TRACE;
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
 const   PORT_READ_TIMEOUT_US:       u64     = 1000;
+/// 最大接收緩衝區大小（包含起始與結尾碼）<br>
+/// Maximum receive buffer size (including start and end codes)
 const   MAX_RECEIVE_BUFFER_SIZE:    usize   = PACKET_MAX_SIZE;
 
+/// 非同步序列埠管理器<br>
+/// Asynchronous serial port manager
 pub struct PortAsyncManager {
-    port_name: Option<String>,
-    inner: Arc<PortAsyncManagerInner>,
-    shutdown_tx: Option<Sender<bool>>,
+    port_name: Option<String>,          // 序列埠名稱／port name
+    inner: Arc<PortAsyncManagerInner>,  // 內部管理結構／inner manager
+    shutdown_tx: Option<Sender<bool>>,  // 停止訊號傳送者／shutdown signal sender
 }
 impl PortAsyncManager {
+    /// 建立新管理器，尚未開啟任何埠<br>
+    /// Creates a new manager with no open port
     pub fn new() -> Self {
         Self {
             port_name: None,
@@ -27,13 +33,15 @@ impl PortAsyncManager {
         }
     }
 
-    /// 取得所有可用序列埠清單<br>
-    /// Lists all available serial ports asynchronously
+    /// 列出所有可用序列埠資訊<br>
+    /// Lists all available serial port infos asynchronously
     pub async fn available() -> Result<Vec<SerialPortInfo>, String> {
         let ports = available_ports().map_err(|e| {format!("Get available ports failed: {}", e)})?;
         Ok(ports)
     }
 
+    /// 開啟指定序列埠並啟動讀寫迴圈<br>
+    /// Opens the specified port and starts the read/write loop
     pub async fn open(
         &mut self,
         app: AppHandle,
@@ -56,6 +64,8 @@ impl PortAsyncManager {
         Ok(())
     }
 
+    /// 關閉目前序列埠，並停止讀寫迴圈<br>
+    /// Closes the current port and stops the read/write loop
     pub async fn close(&mut self) -> Result<(), String> {
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(true);
@@ -67,23 +77,22 @@ impl PortAsyncManager {
         Ok(())
     }
 
+    /// 檢查序列埠是否已開啟<br>
+    /// Checks whether the port is currently open
     pub async fn check_open(&self) -> Result<(), String> {
         self.inner.check_open().await
     }
 }
 
-/// 非同步通訊埠管理器<br>
-/// A manager for serial port communication supporting asynchronous operations
-///
-/// 維護一個可選的 `SerialStream` 實例與當前埠名稱<br>
-/// Maintains an optional `SerialStream` instance and the port name
+/// 內部序列埠管理結構<br>
+/// Internal struct for managing serial port operations
 pub struct PortAsyncManagerInner {
-    reader: Mutex<Option<ReadHalf<SerialStream>>>,
-    writer: Mutex<Option<WriteHalf<SerialStream>>>,
+    reader: Mutex<Option<ReadHalf<SerialStream>>>,  // 讀取半部／read half
+    writer: Mutex<Option<WriteHalf<SerialStream>>>, // 寫入半部／write half
 }
 impl PortAsyncManagerInner {
-    /// 建立全新管理器實例，且尚未打開任何埠<br>
-    /// Creates a new `PortAsyncManager` with no open port
+    /// 建立內部管理實例<br>
+    /// Creates the inner manager instance
     fn new() -> Self {
         Self {
             reader: None.into(),
@@ -91,27 +100,22 @@ impl PortAsyncManagerInner {
         }
     }
 
-    /// 檢查埠是否開啟<br>
-    /// Checks whether the serial port is currently open
+    /// 檢查埠是否開啟，否則回傳錯誤<br>
+    /// Checks if the port is open, returns error if not
     async fn check_open(&self) -> Result<(), String> {
         if self.reader.lock().await.is_none() || self.writer.lock().await.is_none() {
-            return Err( format!("Port is not open") );
+            return Err(format!("Port is not open"));
         }
         Ok(())
     }
 
-    /// 非同步讀取一整包資料並解析為 `UartPacket`<br>
-    /// Reads exactly 1 + data count + 1 bytes and parses into a `UartPacket`
-    ///
-    /// # 錯誤 / Errors
-    /// * 埠未開啟 / port not open
-    /// * 讀取失敗或超時 / read error or timeout
-    /// * 解析封包失敗 / packet parse error
+    /// 非同步讀取並解析完整封包<br>
+    /// Asynchronously reads and parses one full UartPacket
     async fn read_packet(&self) -> Result<UartPacket, String> {
         self.check_open().await?;
         let mut reader_guard = self.reader.lock().await;
         let reader = reader_guard.as_mut().unwrap();
-        // let start = Instant::now();
+
         let mut buffer: Vec<u8> = Vec::with_capacity(MAX_RECEIVE_BUFFER_SIZE);
         for _ in 0..MAX_RECEIVE_BUFFER_SIZE {
             match timeout(
@@ -121,27 +125,23 @@ impl PortAsyncManagerInner {
                 Ok(Ok(byte)) => {
                     buffer.push(byte);
                 },
-                Ok(Err(e)) => { return Err( format!("Read u8 failed: {}", e) ); }
+                Ok(Err(e)) => { return Err(format!("Read u8 failed: {}", e)); }
                 Err(_) => {
-                    if buffer.is_empty() { return Err( format!("{}Read nothing", CODE_TRACE) ); }
+                    if buffer.is_empty() { return Err(format!("{}Read nothing", CODE_TRACE)); }
                     if *buffer.last().unwrap() != PACKET_END_CODE {
-                        return Err( format!("Read timeout at {} bytes (or no end code)", buffer.len()) );
+                        return Err(format!("Read timeout at {} bytes (or no end code)", buffer.len()));
                     }
                     break;
                 }
             };
         }
-        // info!("耗時: {:.2?}", start.elapsed());
+        
         let packet = UartPacket::pack(buffer)?;
         Ok(packet)
     }
 
-    /// 非同步將 `UartPacket` 寫入序列埠<br>
-    /// Writes the bytes of a `UartPacket` to the serial port asynchronously
-    ///
-    /// # 錯誤 / Errors
-    /// * 埠未開啟 / port not open
-    /// * 寫入失敗 / write failure
+    /// 非同步寫入封包到序列埠<br>
+    /// Asynchronously writes a UartPacket to the serial port
     async fn write_packet(&self, packet: UartPacket) -> Result<(), String> {
         self.check_open().await?;
         let mut writer_guard = self.writer.lock().await;
@@ -151,6 +151,8 @@ impl PortAsyncManagerInner {
         Ok(())
     }
 
+    /// 建立並啟動讀寫背景工作迴圈<br>
+    /// Spawns background tasks for continuous read/write loops
     fn spawn_read_write_loop(
         self: &Arc<Self>,
         app: AppHandle,
@@ -191,8 +193,7 @@ impl PortAsyncManagerInner {
                 let maybe_pkt = {
                     let global = write_handle.state::<GlobalState>();
                     let mut transfer_buffer = global.transfer_buffer.lock().await;
-                    let result = transfer_buffer.pop_front();
-                    result
+                    transfer_buffer.pop_front()
                 };
                 if maybe_pkt.is_none() {
                     sleep(Duration::from_millis(10)).await;
@@ -201,14 +202,14 @@ impl PortAsyncManagerInner {
                 let _ = arc_write.write_packet(maybe_pkt.unwrap()).await.map_err(|e| {
                     error!("Port write failed: {}", e);
                 });
-                info!("Port write succeed")
+                info!("Port write succeed");
             }
         });
     }
 }
 
 #[tauri::command]
-/// Tauri command: 取得可用埠名稱清單<br>
+/// 列出可用序列埠名稱<br>
 /// Tauri command: list available port names
 pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     let ports = PortAsyncManager::available().await?;
@@ -218,7 +219,7 @@ pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-/// Tauri command: 檢查埠是否已開啟<br>
+/// 檢查序列埠是否已開啟<br>
 /// Tauri command: check if port is open
 pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     let global_state = app.state::<GlobalState>();
@@ -227,7 +228,7 @@ pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
-/// Tauri command: 開啟指定埠<br>
+/// 開啟指定序列埠<br>
 /// Tauri command: open specified port
 pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
@@ -242,7 +243,7 @@ pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<St
 }
 
 #[tauri::command]
-/// Tauri command: 關閉目前埠<br>
+/// 關閉目前序列埠<br>
 /// Tauri command: close current port
 pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
@@ -251,13 +252,13 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
         error!("{}", e);
         e.clone()
     })?;
-    let _msg = format!("Open close succeed");
+    let _msg = format!("Close port succeed");
     info!("{}", _msg);
     Ok(_msg)
 }
 
 #[tauri::command]
-/// Tauri command: 測試封包寫入與讀取<br>
+/// 測試封包寫入與讀取<br>
 /// Tauri command: test packet write and read
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();

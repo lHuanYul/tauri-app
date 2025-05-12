@@ -58,7 +58,7 @@ impl UartPacket {
             let _msg = format!("Invalid packet start code (expected {}): {}", PACKET_START_CODE, self.start);
             return Err(_msg);
         }
-        return Ok(());
+        Ok(())
     }
 
     /// 檢驗結尾符號是否正確<br>
@@ -68,11 +68,11 @@ impl UartPacket {
             let _msg = format!("Invalid packet end code (expected {}): {}", PACKET_END_CODE, self.end);
             return Err(_msg);
         }
-        return Ok(());
+        Ok(())
     }
 
-    /// 從原始緩衝區解析封包並檢驗結尾碼<br>
-    /// Parses a raw buffer into a UartPacket and validates end code
+    /// 從原始緩衝區解析封包並檢驗碼<br>
+    /// Parses a raw buffer into a UartPacket and validates start/end codes
     pub fn pack(data: Vec<u8>) -> Result<Self, String> {
         if data.first() != Some(&PACKET_START_CODE) {
             let _msg = format!("Start byte invalid (expected {:?}): {:?}", PACKET_START_CODE, data.first());
@@ -86,7 +86,7 @@ impl UartPacket {
         Ok(packet)
     }
 
-    /// 將封包序列化為位元組向量<br>
+    /// 將封包反序列化為位元組向量<br>
     /// Serializes the UartPacket into a byte vector including start, data, and end codes
     pub fn unpack(&self) -> Result<Vec<u8>, String> {
         self.check_start_code()?;
@@ -99,13 +99,16 @@ impl UartPacket {
     }
 }
 
+/// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
+/// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
 #[derive(Debug)]
 pub struct TrReBuffer {
-    packets: Vec<UartPacket>,  // 真正的槽位
-    max_length: usize,                // 最大槽位數
+    packets: Vec<UartPacket>,  // 真正的槽位 / storage for packets
+    max_length: usize,         // 最大槽位數 / maximum number of slots
 }
 impl TrReBuffer {
-    /// 建一個空的 TransferBuffer，並指定最大槽數
+    /// 建立 Transfer Buffer，並指定最大容量<br>
+    /// Creates a new TrReBuffer with a specified maximum capacity
     pub fn new(max_length: usize) -> Self {
         Self {
             packets:    Vec::new(),
@@ -113,20 +116,27 @@ impl TrReBuffer {
         }
     }
 
-    /// 目前已放入幾個有效封包
-    pub fn get_length(&self) -> usize { self.packets.len() }
+    /// 取得目前已儲存封包數<br>
+    /// Returns the current number of stored packets
+    pub fn get_length(&self) -> usize {
+        self.packets.len()
+    }
 
-    /// 是否已經滿了（沒有空槽）
-    pub fn is_full(&self) -> bool { self.packets.len() >= self.max_length }
+    /// 檢查緩衝區是否已滿<br>
+    /// Returns true if the buffer has reached its maximum capacity
+    pub fn is_full(&self) -> bool {
+        self.packets.len() >= self.max_length
+    }
 
-    /// 是否為空（沒有任何封包）
-    pub fn is_empty(&self) -> bool { self.packets.is_empty() }
+    /// 檢查緩衝區是否為空<br>
+    /// Returns true if the buffer contains no packets
+    pub fn is_empty(&self) -> bool {
+        self.packets.is_empty()
+    }
 
-    /// 將 packet push 到尾端，若超過容量則回 Err
-    pub fn push(
-        &mut self,
-        packet: UartPacket
-    ) -> Result<(), String> {
+    /// 將封包推入尾端；若容量已滿則回傳 Err <br>
+    /// Pushes a packet to the end; returns Err if the buffer is full
+    pub fn push(&mut self, packet: UartPacket) -> Result<(), String> {
         if self.is_full() {
             let _msg = format!("Buffer is full (max: {})", self.max_length);
             return Err(_msg);
@@ -135,7 +145,8 @@ impl TrReBuffer {
         Ok(())
     }
 
-    /// 從指定索引取出封包（移除並回傳），若該槽為空則回 None
+    /// 從前端彈出並回傳封包；若為空則回傳 None <br>
+    /// Removes and returns the packet at the front; returns None if empty
     pub fn pop_front(&mut self) -> Option<UartPacket> {
         if self.packets.is_empty() {
             None
@@ -144,6 +155,9 @@ impl TrReBuffer {
         }
     }
 
-    /// 取出所有封包並清空
-    pub fn take_all(&mut self) -> Vec<UartPacket> { std::mem::take(&mut self.packets) }
+    /// 取出所有封包並清空緩衝區<br>
+    /// Takes all packets and clears the buffer
+    pub fn take_all(&mut self) -> Vec<UartPacket> {
+        std::mem::take(&mut self.packets)
+    }
 }
