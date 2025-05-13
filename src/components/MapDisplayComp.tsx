@@ -5,7 +5,7 @@ import mapInfo from '../../src-tauri/generate/map/map_info.json';
 // 方向對應角度（度）：index 0=北，1=東北，2=東，…
 const dirAngles = [-90, -45, 0, 45, 90, 135, 180, -135];
 
-interface MapNode { id: number; name: string; connect: { pos: number; len: number }[]; }
+// interface MapNode { id: number; name: string; connect: { pos: number; len: number }[]; }
 type NodeType = { id: string; label: string; x: number; y: number };
 type LinkType = { source: string; target: string; label: string };
 
