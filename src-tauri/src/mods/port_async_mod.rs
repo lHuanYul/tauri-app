@@ -175,11 +175,13 @@ impl PortAsyncManagerInner {
                 }
                 let packet = result.unwrap();
                 info!("Port read succeed: {}", packet.show());
-                let global = read_handle.state::<GlobalState>();
-                let mut receive_buffer = global.receive_buffer.lock().await;
-                let _ = receive_buffer.push(packet).map_err(|e| {
-                    error!("Packet store failed: {}", e);
-                });
+                let _ = {
+                    let state = read_handle.state::<GlobalState>();
+                    let mut receive_buffer = state.receive_buffer.lock().await;
+                    receive_buffer.push(packet).map_err(|e| {
+                        error!("Packet store failed: {}", e);
+                    })
+                };
             }
         });
 
@@ -207,9 +209,9 @@ impl PortAsyncManagerInner {
     }
 }
 
-#[tauri::command]
 /// 列出可用序列埠名稱<br>
 /// Tauri command: list available port names
+#[tauri::command]
 pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     let ports = PortAsyncManager::available().await?;
     let names = ports.into_iter().rev().map(|info| info.port_name).collect();
@@ -217,18 +219,18 @@ pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-#[tauri::command]
 /// 檢查序列埠是否已開啟<br>
 /// Tauri command: check if port is open
+#[tauri::command]
 pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     let global_state = app.state::<GlobalState>();
     let state = global_state.main_port.lock().await;
     state.check_open().await.is_ok()
 }
 
-#[tauri::command]
 /// 開啟指定序列埠<br>
 /// Tauri command: open specified port
+#[tauri::command]
 pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
     let mut state = global_state.main_port.lock().await;
@@ -241,9 +243,9 @@ pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<St
     Ok(_msg)
 }
 
-#[tauri::command]
 /// 關閉目前序列埠<br>
 /// Tauri command: close current port
+#[tauri::command]
 pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
     let mut port = global_state.main_port.lock().await;
@@ -256,11 +258,11 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
     Ok(_msg)
 }
 
-#[tauri::command]
 /// 測試封包寫入與讀取<br>
 /// Tauri command: test packet write and read
+#[tauri::command]
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
-    mcu_control_mod::send_cmd(app, Movement::FORWARD).await.map_err(|e| {
+    mcu_control_mod::send_cmd(app, Movement::FORWARD.payload).await.map_err(|e| {
         let message = format!("Send failed: {}", e);
         error!("{}", message);
         message

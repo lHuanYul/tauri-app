@@ -24,9 +24,9 @@ use mods::{
         map_save,
     }, matlab_mod::{
         run_engine_plot, MatlabEngine
-    }, packet_mod::TrReBuffer, port_async_mod::{
+    }, port_async_mod::{
         cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test, PortAsyncManager
-    }
+    }, packet_mod::TrReBuffer,
 };
 
 /// Set const
@@ -56,7 +56,7 @@ pub fn run() {
         transfer_buffer:    AsyncMutex::new(TrReBuffer::new(5)),
         receive_buffer:     AsyncMutex::new(TrReBuffer::new(5)),
         matlab_engine:      SyncMutex::new(MatlabEngine::new()),
-        chart_state:        SyncMutex::new(ChartState::new()),
+        chart_state:        SyncMutex::new(ChartState::new(100)),
     };
     global_state.root_path = directory_mod::init();
     

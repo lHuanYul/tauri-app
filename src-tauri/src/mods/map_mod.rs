@@ -23,41 +23,42 @@ const MAP_BASE_H: &str = include_str!(
 /// Struct: MapConnect with pos and len fields
 #[derive(Serialize)]
 struct MapConnect {
-    pos: PosType,
-    len: LenType,
+    pos:    PosType,
+    len:    LenType,
 }
 
 /// 結構：MapItem，包含 id、名稱與多個連接<br>
 /// Struct: MapItem with id, name, and list of connects
 #[derive(Serialize)]
 struct MapItem {
-    id: PosType,
-    name: String,
-    connect: Vec<MapConnect>,
+    id:         PosType,
+    name:       String,
+    connect:    Vec<MapConnect>,
 }
 
 /// 結構：VehiclePos，未使用<br>
 /// Struct: VehiclePos (unused)
 struct VehiclePos {
-    from: PosType,
-    to: PosType,
+    from:   PosType,
+    to:     PosType,
+    on:     bool,
 }
 
 /// 輸入連接結構：InConnect，用於反序列化 JSON<br>
 /// Input struct: InConnect for JSON deserialization
 #[derive(Deserialize)]
 struct InConnect {
-    pos: PosType,
-    len: LenType,
+    pos:    PosType,
+    len:    LenType,
 }
 
 /// 輸入項目結構：InItem，用於反序列化 JSON<br>
 /// Input struct: InItem for JSON deserialization
 #[derive(Deserialize)]
 struct InItem {
-    id: PosType,
-    name: String,
-    connect: Vec<InConnect>,
+    id:         PosType,
+    name:       String,
+    connect:    Vec<InConnect>,
 }
 
 /// Tauri 命令：載入現存的 JSON 檔案<br>
