@@ -5,8 +5,7 @@ use serialport::{available_ports, SerialPortInfo};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf}, sync::{watch::{channel, Receiver, Sender}, Mutex}, time::{sleep, timeout}};
 use crate::{mods::packet_mod::{UartPacket, PACKET_END_CODE, PACKET_MAX_SIZE}, GlobalState};
-
-use super::log_mod::CODE_TRACE;
+use super::{log_mod::CODE_TRACE, mcu_control_mod::{self, Movement}};
 
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
@@ -261,13 +260,10 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
 /// 測試封包寫入與讀取<br>
 /// Tauri command: test packet write and read
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
-    let global_state = app.state::<GlobalState>();
-    let packet = UartPacket::new(vec![1,2,3,4,5,6,7,8,9,10,11,12])?;
-
-    let mut transfer_buffer = global_state.transfer_buffer.lock().await;
-    transfer_buffer.push(packet.clone()).map_err(|e| {
-        error!("{}", e);
-        e.clone()
+    mcu_control_mod::send_cmd(app, Movement::FORWARD).await.map_err(|e| {
+        let message = format!("Send failed: {}", e);
+        error!("{}", message);
+        message
     })?;
-    Ok("Push finish".to_string())
+    Ok(format!("Push finish"))
 }

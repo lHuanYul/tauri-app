@@ -41,9 +41,7 @@ pub fn line_chart_generate(state: &mut ChartState, chart_name: &str) -> Result<P
             .y_label_area_size(30)
             .build_cartesian_2d(0f64..(max_index/5.0), 0f64..10f64)
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         chart.configure_mesh()
@@ -51,9 +49,7 @@ pub fn line_chart_generate(state: &mut ChartState, chart_name: &str) -> Result<P
             .y_desc("Y value")
             .draw()
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         let data: Vec<(f64, f64)> = state
@@ -67,16 +63,12 @@ pub fn line_chart_generate(state: &mut ChartState, chart_name: &str) -> Result<P
                 LineSeries::new(data, &BLUE)
             )
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
         
         drawing_area.present()
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
     }
     Ok(file_path)
@@ -97,9 +89,7 @@ pub fn scatter_chart_generate(state: &mut ChartState, chart_name: &str) -> Resul
         drawing_area
             .fill(&WHITE)
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         let max_index = state.data_points.len() as f64;
@@ -110,9 +100,7 @@ pub fn scatter_chart_generate(state: &mut ChartState, chart_name: &str) -> Resul
             .y_label_area_size(30)
             .build_cartesian_2d(0f64..(max_index / 5.0), 0f64..10f64)
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         chart.configure_mesh()
@@ -120,9 +108,7 @@ pub fn scatter_chart_generate(state: &mut ChartState, chart_name: &str) -> Resul
             .y_desc("Y value")
             .draw()
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         let scatter_data: Vec<(f64, f64)> = state
@@ -139,16 +125,12 @@ pub fn scatter_chart_generate(state: &mut ChartState, chart_name: &str) -> Resul
                     .map(|(x, y)| Circle::new((x, y), 5, RED.filled()))
             )
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
 
         drawing_area.present()
             .map_err(|e| {
-                let message = format!("Generate line chart failed: {}", e);
-                error!("{}", message);
-                message
+                format!("Generate line chart failed: {}", e)
             })?;
     }
 
@@ -170,7 +152,11 @@ pub fn chart_generate(app: AppHandle) -> Result<String, String> {
         .chart_state
         .lock()
         .map_err(|e| format!("鎖住 chart_state 失敗：{}", e))?;
-    let path = line_chart_generate(&mut *state, "current_chart")?;
+    let path = line_chart_generate(&mut *state, "current_chart").map_err(|e| {
+        let message = format!("Chart generate failed: {}", e);
+        error!("{}", message);
+        message
+    })?;
     let b64 = chart_send(&path)?;
     
     info!("耗時: {:.2?}", start.elapsed());

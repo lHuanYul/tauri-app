@@ -11,6 +11,7 @@ pub mod mods {
     pub mod matlab_mod;
     pub mod packet_mod;
     pub mod port_async_mod;
+    pub mod mcu_control_mod;
 }
 use mods::{
     plotter_mod::{

@@ -1,17 +1,17 @@
-use std::{fs::{self, File}, path::{Path, PathBuf}, sync::Mutex as SyncMutex};
+use std::{env, fs::{self, File}, path::{Path, PathBuf}, sync::Mutex as SyncMutex};
 use log::{debug, error, info, warn};
 
 /// 初始化工作目錄並回傳其 Mutex 包裝的 PathBuf<br>
 /// Initialize the working directory and return it wrapped in a Mutex
 pub fn init() -> SyncMutex<PathBuf> {
     // 嘗試取得當前工作目錄，失敗時以 "." 作為預設 / Try to get current dir, fallback to "."
-    let working_directory: PathBuf = get_working_directory().unwrap_or_else(|_e| {
+    let working_directory  = get_working_directory().unwrap_or_else(|_e| {
         error!("> Change to default: .");
         PathBuf::from(".")
     });
 
     // 將路徑轉為字串並記錄日誌 / Convert path to string and log
-    let cwd_str: String = path_to_string(&working_directory).unwrap_or_else(|e| e);
+    let cwd_str  = path_to_string(&working_directory).unwrap_or_else(|e| e);
     info!("Rust working directory: {}", cwd_str);
     // 回傳一個 Mutex 保護的 PathBuf / Return the PathBuf wrapped in a Mutex
     SyncMutex::new(working_directory)
@@ -20,10 +20,8 @@ pub fn init() -> SyncMutex<PathBuf> {
 /// 取得當前工作目錄並回傳 PathBuf<br>
 /// Get current working directory as PathBuf
 pub fn get_working_directory() -> Result<PathBuf, String> {
-    let working_directory = std::env::current_dir().map_err(|e| {
-        let message = format!("Get working directory failed: {}", e);
-        error!("{}", message);
-        message
+    let working_directory = env::current_dir().map_err(|e| {
+        format!("Get working directory failed: {}", e)
     })?;
     // 轉成字串格式並記錄偵錯日誌 / Convert to string and debug log
     let working_directory_str = path_to_string(&working_directory).unwrap_or_else(|e| e);
