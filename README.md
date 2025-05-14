@@ -1,7 +1,16 @@
-# Tauri + React + Typescript
+# HuanYu Tauri App
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+## Use
+pnpm windows powershell  
+Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression  
 
-## Recommended IDE Setup
+JavaScript and TypeScript Nightly  
+Tauri  
+Simple React Snippets  
+ES7+ React/Redux/React-Native snippets  
+Rust (1yic)  
+Rust Doc Viewer  
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Prettier - Code formatter  
+Pretty TypeScript Errors  
+Dependi  
