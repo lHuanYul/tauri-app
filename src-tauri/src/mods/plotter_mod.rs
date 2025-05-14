@@ -2,26 +2,25 @@ use std::{fs, path::{Path, PathBuf}, time::Instant};
 use log::{error, info};
 use plotters::prelude::*;
 use rand;
-use base64::{engine::general_purpose, Engine as _};
+use base64::{engine::general_purpose, Engine};
 use tauri::{AppHandle, Manager};
 use crate::{
-    mods::directory_mod::create_file, GlobalState, GENERATE_FOLDER_PATH
+    mods::directory_mod::{self}, GlobalState, GENERATE_FOLDER_PATH
 };
 
 fn store_folder() -> String {
     return format!("{}/chart", GENERATE_FOLDER_PATH)
 }
 
-/// ChartState: 儲存資料點並維持最大長度
+/// ChartDataPoints: 儲存資料點並維持最大長度 <br>
 /// Stores data points and maintains a maximum length
-pub struct ChartState {
+pub struct ChartDataPoints {
     data_points: Vec<f32>,
     max_length: usize,
 }
-
-impl ChartState {
-    /// 建立新的 ChartState
-    /// Create a new ChartState with specified capacity
+impl ChartDataPoints {
+    /// 建立新的 ChartDataPoints
+    /// Create a new ChartDataPoints with specified capacity
     pub fn new(max_length: usize) -> Self {
         Self {
             data_points: Vec::new(),
@@ -30,7 +29,7 @@ impl ChartState {
     }
 
     /// 建立並推入一個隨機值
-    /// Create a new ChartState and push one random value
+    /// Create a new ChartDataPoints and push one random value
     pub fn new_rand(max_length: usize) -> Self {
         let mut new = Self::new(max_length);
         for _ in 0..new.max_length {
@@ -56,107 +55,87 @@ impl ChartState {
     }
 }
 
-pub fn line_chart_generate(state: &mut ChartState, chart_name: &str) -> Result<PathBuf, String> {
-    let file_path = create_file(store_folder(), &format!("{}.png", chart_name))?;
+pub fn line_chart_generate(
+    chart_data_points: &mut ChartDataPoints,
+    chart_name: &str
+) -> Result<PathBuf, String> {
+    let file_path = directory_mod::create_file(store_folder(), &format!("{}.png", chart_name))?;
+    let _file_path = file_path.clone();
+
+    let drawing_area = BitMapBackend::new(&_file_path, (960, 540)).into_drawing_area();
+    drawing_area.fill(&WHITE).map_err(|e| e.to_string())?;
+
+    let max_index = chart_data_points.data_points.len() as f32;
+    let mut chart = ChartBuilder::on(&drawing_area)
+        .caption("Line Chart (f32)", ("sans-serif", 20))
+        .margin(10)
+        .x_label_area_size(30).y_label_area_size(30)
+        .build_cartesian_2d(0f32..(max_index/5.0), 0f32..10f32)
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+
+    chart.configure_mesh()
+        .x_desc("X value").y_desc("Y value")
+        .draw()
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+
+    let data: Vec<(f32, f32)> = chart_data_points.data_points
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| (i as f32 / 5.0, v))
+        .collect();
+
+    chart.draw_series(LineSeries::new(data, &BLUE))
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
     
-    {
-        let drawing_area = BitMapBackend::new(&file_path, (960, 540)).into_drawing_area();
-        drawing_area.fill(&WHITE).map_err(|e| e.to_string())?;
+    drawing_area.present()
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
-        let max_index = state.data_points.len() as f32;
-        let mut chart = ChartBuilder::on(&drawing_area)
-            .caption("Line Chart (f32)", ("sans-serif", 20))
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(0f32..(max_index/5.0), 0f32..10f32)
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
-
-        chart.configure_mesh()
-            .x_desc("X value")
-            .y_desc("Y value")
-            .draw()
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
-
-        let data: Vec<(f32, f32)> = state
-            .data_points
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| (i as f32 / 5.0, v))
-            .collect();
-
-        chart.draw_series(
-                LineSeries::new(data, &BLUE)
-            )
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
-        
-        drawing_area.present()
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
-    }
     Ok(file_path)
 }
 
-pub fn scatter_chart_generate(state: &mut ChartState, chart_name: &str) -> Result<PathBuf, String> {
-    let file_path = create_file(store_folder(), &format!("{}.png", chart_name))?;
+pub fn scatter_chart_generate(
+    chart_data_points: &mut ChartDataPoints,
+    chart_name: &str
+) -> Result<PathBuf, String> {
+    let file_path = directory_mod::create_file(store_folder(), &format!("{}.png", chart_name))?;
+    let _file_path = file_path.clone();
 
-    {
-        let drawing_area = BitMapBackend::new(&file_path, (960, 540))
-            .into_drawing_area();
-        drawing_area
-            .fill(&WHITE)
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
+    let drawing_area = BitMapBackend::new(&_file_path, (960, 540))
+        .into_drawing_area();
+    drawing_area
+        .fill(&WHITE)
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
-        let max_index = state.data_points.len() as f32;
-        let mut chart = ChartBuilder::on(&drawing_area)
-            .caption("Scatter Chart (f32)", ("sans-serif", 20))
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(0f32..(max_index / 5.0), 0f32..10f32)
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
+    let max_index = chart_data_points.data_points.len() as f32;
+    let mut chart = ChartBuilder::on(&drawing_area)
+        .caption("Scatter Chart (f32)", ("sans-serif", 20))
+        .margin(10)
+        .x_label_area_size(30).y_label_area_size(30)
+        .build_cartesian_2d(0f32..(max_index / 5.0), 0f32..10f32)
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
-        chart.configure_mesh()
-            .x_desc("X value")
-            .y_desc("Y value")
-            .draw()
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
+    chart.configure_mesh()
+        .x_desc("X value").y_desc("Y value")
+        .draw()
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
-        let scatter_data: Vec<(f32, f32)> = state
-            .data_points
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| (i as f32 / 5.0, v))
-            .collect();
+    let scatter_data: Vec<(f32, f32)> = chart_data_points
+        .data_points
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| (i as f32 / 5.0, v))
+        .collect();
 
-        // 繪製散點：圓點半徑 5，紅色實心
-        chart.draw_series(
-                scatter_data
-                    .into_iter()
-                    .map(|(x, y)| Circle::new((x, y), 5, RED.filled()))
-            )
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
+    // 繪製散點：圓點半徑 5，紅色實心
+    chart.draw_series(
+            scatter_data
+                .into_iter()
+                .map(|(x, y)| Circle::new((x, y), 5, RED.filled()))
+        )
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
-        drawing_area.present()
-            .map_err(|e| {
-                format!("Generate line chart failed: {}", e)
-            })?;
-    }
+    drawing_area.present()
+        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
 
     Ok(file_path)
 }
@@ -169,21 +148,20 @@ pub fn chart_send<P: AsRef<Path>>(chart_path: P) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn chart_generate(app: AppHandle) -> Result<String, String> {
+pub async fn chart_generate(app: AppHandle) -> Result<String, String> {
     let start = Instant::now();
+
     let global_state = app.state::<GlobalState>();
-    let mut state = global_state
-        .chart_state
-        .lock()
-        .map_err(|e| format!("鎖住 chart_state 失敗：{}", e))?;
+    let mut state = global_state.speed_data_points.lock().await;
     let path = line_chart_generate(&mut *state, "current_chart").map_err(|e| {
-        let message = format!("Chart generate failed: {}", e);
-        error!("{}", message);
-        message
+        error!("{}", e);
+        e
     })?;
-    let b64 = chart_send(&path)?;
+    let b64 = chart_send(&path).map_err(|e| {
+        error!("{}", e);
+        e
+    })?;
     
     info!("耗時: {:.2?}", start.elapsed());
-
     Ok(b64)
 }

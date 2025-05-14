@@ -1,13 +1,16 @@
-pnpm windows powershell
-Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression
+# HuanYu Tauri App
 
-JavaScript and TypeScript Nightly
-Tauri
-Simple React Snippets
-ES7+ React/Redux/React-Native snippets
-Rust (1yic)
-Rust Doc Viewer
+## Use
+pnpm windows powershell  
+Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression  
 
-Prettier - Code formatter
-Pretty TypeScript Errors
-Dependi
+JavaScript and TypeScript Nightly  
+Tauri  
+Simple React Snippets  
+ES7+ React/Redux/React-Native snippets  
+Rust (1yic)  
+Rust Doc Viewer  
+
+Prettier - Code formatter  
+Pretty TypeScript Errors  
+Dependi  

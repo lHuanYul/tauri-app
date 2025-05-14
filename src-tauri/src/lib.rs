@@ -15,7 +15,7 @@ pub mod mods {
 }
 use mods::{
     plotter_mod::{
-        chart_generate, ChartState
+        chart_generate, ChartDataPoints
     }, directory_mod, log_mod, loop_cmd_mod::{
         cmd_1kms_loop,
         cmd_50ms_loop,
@@ -44,7 +44,7 @@ pub struct GlobalState {
     pub transfer_buffer:    AsyncMutex<TrReBuffer>,
     pub receive_buffer:     AsyncMutex<TrReBuffer>,
     pub matlab_engine:      SyncMutex<MatlabEngine>,
-    pub chart_state:        SyncMutex<ChartState>,
+    pub speed_data_points:  AsyncMutex<ChartDataPoints>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,7 +56,7 @@ pub fn run() {
         transfer_buffer:    AsyncMutex::new(TrReBuffer::new(5)),
         receive_buffer:     AsyncMutex::new(TrReBuffer::new(5)),
         matlab_engine:      SyncMutex::new(MatlabEngine::new()),
-        chart_state:        SyncMutex::new(ChartState::new(100)),
+        speed_data_points:  AsyncMutex::new(ChartDataPoints::new(100)),
     };
     global_state.root_path = directory_mod::init();
     

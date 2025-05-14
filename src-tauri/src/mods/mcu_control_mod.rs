@@ -112,7 +112,7 @@ pub async fn write_speed(app: AppHandle, data: &[u8]) ->Result<(), String> {
     let bytes: [u8; 4] = data[0..4].try_into().unwrap();
     let value = f32::from_be_bytes(bytes);
     let global_state = app.state::<GlobalState>();
-    let mut chart_state = global_state.chart_state.lock().expect("鎖住 chart_state 失敗");
+    let mut chart_state = global_state.speed_data_points.lock().await;
     chart_state.push(value);
     if data.len() > 4 {
         error!(

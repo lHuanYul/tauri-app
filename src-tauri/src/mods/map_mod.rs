@@ -3,23 +3,23 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use crate::mods::directory_mod::{create_file, path_to_string};
 
-/// 常數：用於 C 程式碼縮排<br>
+/// 常數：用於 C 程式碼縮排  
 /// Constant: indentation for generated C code
 const TAB_SPACE: &str = "    ";
 
-/// 型別別名：位置與長度資料型態<br>
+/// 型別別名：位置與長度資料型態  
 /// Type alias: data types for position and length
 type PosType = u16;
 type LenType = u32;
 
-/// 常數：儲存檔案的資料夾路徑<br>
+/// 常數：儲存檔案的資料夾路徑  
 /// Constant: folder path to store generated files
 const STORE_FOLDER: &str = "generate/map";
 const MAP_BASE_H: &str = include_str!(
     concat!(env!("CARGO_MANIFEST_DIR"), "/generate_base/map/map_base.h")
 );
 
-/// 結構：MapConnect，定義 pos 和 len 欄位<br>
+/// 結構：MapConnect，定義 pos 和 len 欄位  
 /// Struct: MapConnect with pos and len fields
 #[derive(Serialize)]
 struct MapConnect {
@@ -27,7 +27,7 @@ struct MapConnect {
     len:    LenType,
 }
 
-/// 結構：MapItem，包含 id、名稱與多個連接<br>
+/// 結構：MapItem，包含 id、名稱與多個連接  
 /// Struct: MapItem with id, name, and list of connects
 #[derive(Serialize)]
 struct MapItem {
@@ -36,7 +36,7 @@ struct MapItem {
     connect:    Vec<MapConnect>,
 }
 
-/// 結構：VehiclePos，未使用<br>
+/// 結構：VehiclePos，未使用  
 /// Struct: VehiclePos (unused)
 struct VehiclePos {
     from:   PosType,
@@ -44,7 +44,7 @@ struct VehiclePos {
     on:     bool,
 }
 
-/// 輸入連接結構：InConnect，用於反序列化 JSON<br>
+/// 輸入連接結構：InConnect，用於反序列化 JSON  
 /// Input struct: InConnect for JSON deserialization
 #[derive(Deserialize)]
 struct InConnect {
@@ -52,7 +52,7 @@ struct InConnect {
     len:    LenType,
 }
 
-/// 輸入項目結構：InItem，用於反序列化 JSON<br>
+/// 輸入項目結構：InItem，用於反序列化 JSON  
 /// Input struct: InItem for JSON deserialization
 #[derive(Deserialize)]
 struct InItem {
@@ -61,7 +61,7 @@ struct InItem {
     connect:    Vec<InConnect>,
 }
 
-/// Tauri 命令：載入現存的 JSON 檔案<br>
+/// Tauri 命令：載入現存的 JSON 檔案  
 /// Tauri command: load existing JSON file
 #[tauri::command]
 pub fn map_load() -> Result<String, String> {
@@ -78,7 +78,7 @@ pub fn map_load() -> Result<String, String> {
     Ok(result)
 }
 
-/// 解析輸入的 JSON 字串，並生成 C/C++ 初始值陣列和新的 JSON 檔案。<br>
+/// 解析輸入的 JSON 字串，並生成 C/C++ 初始值陣列和新的 JSON 檔案。  
 /// Parses incoming JSON `data` and generates a C initializer array plus a JSON file.
 #[tauri::command]
 pub fn map_save(

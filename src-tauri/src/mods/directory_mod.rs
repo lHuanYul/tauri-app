@@ -1,12 +1,12 @@
 use std::{env, fs::{self, File}, path::{Path, PathBuf}, sync::Mutex as SyncMutex};
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 
-/// 初始化工作目錄並回傳其 Mutex 包裝的 PathBuf<br>
+/// 初始化工作目錄並回傳其 Mutex 包裝的 PathBuf <br>
 /// Initialize the working directory and return it wrapped in a Mutex
 pub fn init() -> SyncMutex<PathBuf> {
     // 嘗試取得當前工作目錄，失敗時以 "." 作為預設 / Try to get current dir, fallback to "."
     let working_directory  = get_working_directory().unwrap_or_else(|_e| {
-        error!("> Change to default: .");
+        warn!("Change to default: .");
         PathBuf::from(".")
     });
 
@@ -17,7 +17,7 @@ pub fn init() -> SyncMutex<PathBuf> {
     SyncMutex::new(working_directory)
 }
 
-/// 取得當前工作目錄並回傳 PathBuf<br>
+/// 取得當前工作目錄並回傳 PathBuf <br>
 /// Get current working directory as PathBuf
 pub fn get_working_directory() -> Result<PathBuf, String> {
     let working_directory = env::current_dir().map_err(|e| {
@@ -29,7 +29,7 @@ pub fn get_working_directory() -> Result<PathBuf, String> {
     Ok(working_directory)
 }
 
-/// 將 Path 轉為標準化字串 (替換反斜線為正斜線)<br>
+/// 將 Path 轉為標準化字串 (替換反斜線為正斜線) <br>
 /// Convert a Path to a normalized String (backslashes to forward slashes)
 pub fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, String> {
     let path_ref = path.as_ref();
@@ -44,7 +44,7 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, String> {
     }
 }
 
-/// 在指定資料夾路徑下建立所有子資料夾<br>
+/// 在指定資料夾路徑下建立所有子資料夾 <br>
 /// Create all directories for the given folder path
 pub fn create_folder<P: AsRef<Path>>(folder_path: P) -> Result<PathBuf, String> {
     let path = Path::new(folder_path.as_ref());
@@ -54,7 +54,7 @@ pub fn create_folder<P: AsRef<Path>>(folder_path: P) -> Result<PathBuf, String> 
     Ok(path.to_path_buf())
 }
 
-/// 在指定資料夾下建立檔案，已存在則不覆寫<br>
+/// 在指定資料夾下建立檔案，已存在則不覆寫 <br>
 /// Create a file in the specified folder, no overwrite if exists
 pub fn create_file<P: AsRef<Path>>(folder_path: P, file_name: &str) -> Result<PathBuf, String> {
     // 確保資料夾存在 / Ensure folder exists
