@@ -1,6 +1,5 @@
 use std::{fs, path::PathBuf};
 use log::error;
-use num_traits::ToPrimitive;
 use plotters::prelude::*;
 use rand::{self, Rng};
 use base64::{engine::general_purpose, Engine};
@@ -11,8 +10,6 @@ fn store_folder() -> String {
     format!("{}/chart", GENERATE_FOLDER_PATH)
 }
 
-/// ChartDataPoints: 儲存資料點並維持最大長度
-/// Stores data points and maintains a maximum length
 pub struct ChartRandDatas {
     file_path: PathBuf,
     display_name: String,
@@ -44,10 +41,6 @@ impl ChartRandDatas {
         new
     }
 
-    pub fn path(&self) -> PathBuf {
-        self.file_path.clone()
-    }
-
     /// 推入一個新值，並移除超額的最舊值
     pub fn push(&mut self, value: i32) {
         self.data_points_1.push(value);
@@ -55,10 +48,15 @@ impl ChartRandDatas {
             self.data_points_1.remove(0);
         }
     }
+    
+    pub fn send_to_front(&self) -> Result<String, String> {
+        let bytes = fs::read(self.file_path.clone())
+            .map_err(|e| format!("Cannot read file: {}", e))?;
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
 
     pub fn line_chart_generate(&self) -> Result<(), String> {
-        let root_size_x = 2160;
-        let root_size_y = 1215;
+        let (root_size_x, root_size_y) = (2160, 1215);
         // 1. 建立繪圖區並填背景
         let root = BitMapBackend::new(&self.file_path, (root_size_x, root_size_y))
             .into_drawing_area();
@@ -74,11 +72,11 @@ impl ChartRandDatas {
         let legend_area = legend_area.margin(0, root_mergin, root_mergin, root_mergin);
 
         // 4. 計算座標範圍
-        let data_min_x = 0 as i32;
-        let data_max_x = self.max_length.to_i32().unwrap();
+        let (data_min_x, data_max_x) =
+            (0 as i32, self.max_length as i32);
         let data_all_vals = self.data_points_1.iter().chain(self.data_points_2.iter()).cloned();
-        let data_min_y = data_all_vals.clone().min().unwrap_or(0) - 1;
-        let data_max_y = data_all_vals.max().unwrap_or(0) + 1;
+        let (data_min_y, data_max_y) =
+            (data_all_vals.clone().min().unwrap_or(0) - 1, data_all_vals.max().unwrap_or(0) + 1);
 
         // 5. 建立 ChartContext
         let mut chart = ChartBuilder::on(&data_area)
@@ -97,51 +95,69 @@ impl ChartRandDatas {
             .draw()
             .map_err(|e| e.to_string())?;
 
-        // 7. 準備資料點
-        let points1: Vec<(i32, i32)> = self.data_points_1.iter()
-            .enumerate().map(|(i, &v)| (i as i32, v)).collect();
-        let points2: Vec<(i32, i32)> = self.data_points_2.iter()
-            .enumerate().map(|(i, &v)| (i as i32, v)).collect();
-
-        let data_dot_size = 2;
-        // 8. 繪製序列 1 (紅色)
-        chart.draw_series(LineSeries::new(points1.clone(), &RED))
-            .map_err(|e| e.to_string())?;
-        chart.draw_series(
-            points1.iter().map(|&p| Circle::new(p, data_dot_size, RED.filled()))
-        ).map_err(|e| e.to_string())?;
-        // 9. 繪製序列 2 (藍色)
-        chart.draw_series(LineSeries::new(points2.clone(), &BLUE))
-            .map_err(|e| e.to_string())?;
-        chart.draw_series(
-            points2.iter().map(|&p| Circle::new(p, data_dot_size, BLUE.filled()))
-        ).map_err(|e| e.to_string())?;
-
-        // 10. 手動繪製圖例於 legend_area
-        legend_area.fill(&WHITE).map_err(|e| e.to_string())?;
-        // 準備文字樣式
-        let text_style = ("Serif", 25).into_text_style(&legend_area);
-        // Series 1 標示
-        let legend_line_size = 40;
+        let data_dot_size = 5;
+        let legend_dot_size = 5;
+        let legend_text_style = ("Serif", 25).into_text_style(&legend_area);
+        let legend_line_len = 40;
         let legend_font_dist = 10;
-        legend_area.draw(&PathElement::new(vec![(120, 0), (120 + legend_line_size, 0)], &RED,))
-            .map_err(|e| e.to_string())?;
-        legend_area.draw_text("Series 1", &text_style, (110, 0 + legend_font_dist),)
-            .map_err(|e| e.to_string())?;
-        // Series 2 標示
-        legend_area.draw(&PathElement::new(vec![(220, 0), (220 + legend_line_size, 0)], &BLUE,))
-            .map_err(|e| e.to_string())?;
-        legend_area.draw_text("Series 2", &text_style, (210, 0 + legend_font_dist),)
-            .map_err(|e| e.to_string())?;
+        // SquareMarker
+        {
+            let color: RGBColor = RED;
+            let (legend_x, legend_y) = (120, 0);
+            let legend_name = "Series 1";
+            let (legend_name_x, legend_name_y) = (legend_x - 10, 0 + legend_font_dist);
+            let points: Vec<(i32, i32)> = self.data_points_1.iter()
+                .enumerate().map(|(i, &v)| (i as i32, v)).collect();
 
-        // 11. 輸出圖檔
+            chart.draw_series(LineSeries::new(points.clone(), &color))
+                .map_err(|e| e.to_string())?;
+            chart.draw_series(
+                points.iter().map(|&p| Circle::new(p, data_dot_size, color.filled()))
+            ).map_err(|e| e.to_string())?;
+
+            legend_area.draw(&PathElement::new(
+                    vec![(legend_x, legend_y), (legend_x + legend_line_len, legend_y)],
+                    &color,
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw(&Circle::new(
+                    (legend_x + legend_line_len / 2, legend_y),
+                    legend_dot_size, color.filled()
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw_text(legend_name, &legend_text_style, (legend_name_x, legend_name_y))
+                .map_err(|e| e.to_string())?;
+        }
+        {
+            let color: RGBColor = BLUE;
+            let (legend_x, legend_y) = (220, 0);
+            let legend_name = "Series 2";
+            let (legend_name_x, legend_name_y) = (legend_x - 10, 0 + legend_font_dist);
+            let points: Vec<(i32, i32)> = self.data_points_2.iter()
+                .enumerate().map(|(i, &v)| (i as i32, v)).collect();
+
+            chart.draw_series(LineSeries::new(points.clone(), &color))
+                .map_err(|e| e.to_string())?;
+            chart.draw_series(
+                points.iter().map(|&p| TriangleMarker::new(p, data_dot_size, color.filled()))
+            ).map_err(|e| e.to_string())?;
+
+            legend_area.draw(&PathElement::new(
+                vec![(legend_x, legend_y), (legend_x + legend_line_len, legend_y)],
+                &color
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw(&TriangleMarker::new(
+                    (legend_x + legend_line_len / 2, legend_y),
+                    legend_dot_size, color.filled()
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw_text(legend_name, &legend_text_style, (legend_name_x, legend_name_y))
+                .map_err(|e| e.to_string())?;
+        }
+        legend_area.fill(&WHITE).map_err(|e| e.to_string())?;
+
         root.present().map_err(|e| e.to_string())
-    }
-
-    pub fn send_to_front(&self) -> Result<String, String> {
-        let bytes = fs::read(self.file_path.clone())
-            .map_err(|e| format!("Cannot read file: {}", e))?;
-        Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
 
