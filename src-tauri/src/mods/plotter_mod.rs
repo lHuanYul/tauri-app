@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, iter, path::PathBuf};
 use log::error;
 use plotters::prelude::*;
 use rand::{self, Rng};
@@ -94,22 +94,30 @@ impl ChartRandDatas {
             .label_style(("Serif", 20))
             .draw()
             .map_err(|e| e.to_string())?;
+        chart.draw_series(
+            iter::once(PathElement::new(
+                vec![(data_min_x, 0), (data_max_x, 0)],
+                BLACK.stroke_width(1),
+            ))
+        ).map_err(|e| e.to_string())?;
 
         let data_dot_size = 5;
         let legend_dot_size = 5;
         let legend_text_style = ("Serif", 25).into_text_style(&legend_area);
         let legend_line_len = 40;
-        let legend_font_dist = 10;
+        let legend_font_dist = 20;
         // SquareMarker
         {
-            let color: RGBColor = RED;
+            let color = RED;
+            let data_style = color.stroke_width(3);
+            let legend_style = color.stroke_width(2);
             let (legend_x, legend_y) = (120, 0);
             let legend_name = "Series 1";
-            let (legend_name_x, legend_name_y) = (legend_x - 10, 0 + legend_font_dist);
+            let (legend_name_x, legend_name_y) = (legend_x - 10, legend_y + legend_font_dist);
             let points: Vec<(i32, i32)> = self.data_points_1.iter()
                 .enumerate().map(|(i, &v)| (i as i32, v)).collect();
 
-            chart.draw_series(LineSeries::new(points.clone(), &color))
+            chart.draw_series(LineSeries::new(points.clone(), data_style))
                 .map_err(|e| e.to_string())?;
             chart.draw_series(
                 points.iter().map(|&p| Circle::new(p, data_dot_size, color.filled()))
@@ -117,7 +125,7 @@ impl ChartRandDatas {
 
             legend_area.draw(&PathElement::new(
                     vec![(legend_x, legend_y), (legend_x + legend_line_len, legend_y)],
-                    &color,
+                    legend_style,
                 ))
                 .map_err(|e| e.to_string())?;
             legend_area.draw(&Circle::new(
@@ -129,14 +137,16 @@ impl ChartRandDatas {
                 .map_err(|e| e.to_string())?;
         }
         {
-            let color: RGBColor = BLUE;
+            let color = BLUE;
+            let data_style = color.stroke_width(3);
+            let legend_style = color.stroke_width(2);
             let (legend_x, legend_y) = (220, 0);
             let legend_name = "Series 2";
-            let (legend_name_x, legend_name_y) = (legend_x - 10, 0 + legend_font_dist);
+            let (legend_name_x, legend_name_y) = (legend_x - 10, legend_y + legend_font_dist);
             let points: Vec<(i32, i32)> = self.data_points_2.iter()
                 .enumerate().map(|(i, &v)| (i as i32, v)).collect();
 
-            chart.draw_series(LineSeries::new(points.clone(), &color))
+            chart.draw_series(LineSeries::new(points.clone(), data_style))
                 .map_err(|e| e.to_string())?;
             chart.draw_series(
                 points.iter().map(|&p| TriangleMarker::new(p, data_dot_size, color.filled()))
@@ -144,7 +154,7 @@ impl ChartRandDatas {
 
             legend_area.draw(&PathElement::new(
                 vec![(legend_x, legend_y), (legend_x + legend_line_len, legend_y)],
-                &color
+                legend_style
                 ))
                 .map_err(|e| e.to_string())?;
             legend_area.draw(&TriangleMarker::new(
@@ -155,7 +165,6 @@ impl ChartRandDatas {
             legend_area.draw_text(legend_name, &legend_text_style, (legend_name_x, legend_name_y))
                 .map_err(|e| e.to_string())?;
         }
-        legend_area.fill(&WHITE).map_err(|e| e.to_string())?;
 
         root.present().map_err(|e| e.to_string())
     }

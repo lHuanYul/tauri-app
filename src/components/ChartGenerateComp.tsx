@@ -14,7 +14,7 @@ const ChartGenerateComp: React.FC = () => {
             } catch (error) {
                 console.error('更新圖像失敗:', error);
             }
-        }, 500);
+        }, 1000);
 
         return () => clearInterval(interval);
     }, []);
