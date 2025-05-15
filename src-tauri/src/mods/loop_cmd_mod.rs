@@ -4,10 +4,8 @@ use crate::{mods::mcu_control_mod::{self}, GlobalState};
 
 #[tauri::command]
 pub async fn cmd_1kms_loop(app: AppHandle) -> Result<String, String> {
-    let global_state = app.state::<GlobalState>();
-    let receive_buffer = global_state.receive_buffer.lock().await;
-    receive_buffer.show(5);
-    let message = format!("1kms loop finish");
+    let _global_state = app.state::<GlobalState>();
+    let message = "1kms loop finish".into();
     trace!("{}", message);
     Ok(message)
 }
@@ -15,7 +13,7 @@ pub async fn cmd_1kms_loop(app: AppHandle) -> Result<String, String> {
 #[tauri::command]
 pub async fn cmd_50ms_loop(app: AppHandle) -> Result<String, String> {
     mcu_control_mod::receive_packet_proccess(app).await;
-    let message = format!("50ms loop finish");
+    let message = "50ms loop finish".into();
     trace!("{}", message);
     Ok(message)
 }

@@ -20,7 +20,7 @@ impl UartPacket {
     /// Creates a new UartPacket with the given data and sets the end code
     pub fn new(data: Vec<u8>) -> Result<Self, String> {
         if data.len() > PACKET_DATA_MAX_SIZE {
-            let msg = format!("Data too long: length = {}, max = {}", data.len(), PACKET_DATA_MAX_SIZE);
+            let msg = format!("Data too long: length = {}, max = {PACKET_DATA_MAX_SIZE}", data.len());
             return Err(msg);
         }
         Ok(Self {

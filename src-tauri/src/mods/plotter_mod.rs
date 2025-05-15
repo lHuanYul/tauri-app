@@ -1,167 +1,154 @@
-use std::{fs, path::{Path, PathBuf}, time::Instant};
-use log::{error, info};
+use std::{fs, path::PathBuf};
+use log::error;
+use num_traits::ToPrimitive;
 use plotters::prelude::*;
-use rand;
+use rand::{self, Rng};
 use base64::{engine::general_purpose, Engine};
 use tauri::{AppHandle, Manager};
-use crate::{
-    mods::directory_mod::{self}, GlobalState, GENERATE_FOLDER_PATH
-};
+use crate::{mods::directory_mod, GlobalState, GENERATE_FOLDER_PATH};
 
 fn store_folder() -> String {
-    return format!("{}/chart", GENERATE_FOLDER_PATH)
+    format!("{}/chart", GENERATE_FOLDER_PATH)
 }
 
-/// ChartDataPoints: 儲存資料點並維持最大長度 <br>
+/// ChartDataPoints: 儲存資料點並維持最大長度
 /// Stores data points and maintains a maximum length
-pub struct ChartDataPoints {
-    data_points: Vec<f32>,
+pub struct ChartRandDatas {
+    file_path: PathBuf,
+    display_name: String,
+    data_points_1: Vec<i32>,
+    data_points_2: Vec<i32>,
     max_length: usize,
 }
-impl ChartDataPoints {
+impl ChartRandDatas {
     /// 建立新的 ChartDataPoints
-    /// Create a new ChartDataPoints with specified capacity
-    pub fn new(max_length: usize) -> Self {
+    pub fn new(name: &str, display_name: &str, max_length: usize) -> Self {
+        let file_path = directory_mod::create_file(store_folder(), &format!("{name}.png"))
+            .map_err(|e| error!("{}", e)).unwrap();
         Self {
-            data_points: Vec::new(),
+            file_path,
+            display_name: display_name.to_owned(),
+            data_points_1: Vec::new(),
+            data_points_2: Vec::new(),
             max_length,
         }
     }
 
-    /// 建立並推入一個隨機值
-    /// Create a new ChartDataPoints and push one random value
-    pub fn new_rand(max_length: usize) -> Self {
-        let mut new = Self::new(max_length);
+    /// 建立並推入隨機值
+    pub fn new_rand(name: &str, display_name: &str, max_length: usize) -> Self {
+        let mut new = Self::new(name, display_name, max_length);
         for _ in 0..new.max_length {
-            new.data_points.push(rand::random::<f32>() * 10.0);
+            new.data_points_1.push(rand::rng().random_range(-10..=10));
+            new.data_points_2.push(rand::rng().random_range(-10..=10));
         }
         new
     }
 
-    /// 取得所有資料點的複本
-    /// Return a clone of all data points
-    pub fn data(&self) -> Vec<f32> {
-        self.data_points.clone()
+    pub fn path(&self) -> PathBuf {
+        self.file_path.clone()
     }
 
     /// 推入一個新值，並移除超額的最舊值
-    /// Push a new value and remove oldest if over capacity
-    pub fn push(&mut self, value: f32) {
-        self.data_points.push(value);
-        // 如果超過預設長度，移除最前面的元素
-        if self.data_points.len() > self.max_length {
-            self.data_points.remove(0);
+    pub fn push(&mut self, value: i32) {
+        self.data_points_1.push(value);
+        if self.data_points_1.len() > self.max_length {
+            self.data_points_1.remove(0);
         }
     }
-}
 
-pub fn line_chart_generate(
-    chart_data_points: &mut ChartDataPoints,
-    chart_name: &str
-) -> Result<PathBuf, String> {
-    let file_path = directory_mod::create_file(store_folder(), &format!("{}.png", chart_name))?;
-    let _file_path = file_path.clone();
+    pub fn line_chart_generate(&self) -> Result<(), String> {
+        let root_size_x = 2160;
+        let root_size_y = 1215;
+        // 1. 建立繪圖區並填背景
+        let root = BitMapBackend::new(&self.file_path, (root_size_x, root_size_y))
+            .into_drawing_area();
+        root.fill(&WHITE).map_err(|e| e.to_string())?;
 
-    let drawing_area = BitMapBackend::new(&_file_path, (960, 540)).into_drawing_area();
-    drawing_area.fill(&WHITE).map_err(|e| e.to_string())?;
+        let legend_area_size = 100;
+        let (data_area, legend_area) = 
+            root.split_vertically((root_size_y - legend_area_size) as u32);
 
-    let max_index = chart_data_points.data_points.len() as f32;
-    let mut chart = ChartBuilder::on(&drawing_area)
-        .caption("Line Chart (f32)", ("sans-serif", 20))
-        .margin(10)
-        .x_label_area_size(30).y_label_area_size(30)
-        .build_cartesian_2d(0f32..(max_index/5.0), 0f32..10f32)
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+        // 3. 留邊
+        let root_mergin = 40;
+        let data_area   = data_area  .margin(root_mergin, 0, root_mergin, root_mergin);
+        let legend_area = legend_area.margin(0, root_mergin, root_mergin, root_mergin);
 
-    chart.configure_mesh()
-        .x_desc("X value").y_desc("Y value")
-        .draw()
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+        // 4. 計算座標範圍
+        let data_min_x = 0 as i32;
+        let data_max_x = self.max_length.to_i32().unwrap();
+        let data_all_vals = self.data_points_1.iter().chain(self.data_points_2.iter()).cloned();
+        let data_min_y = data_all_vals.clone().min().unwrap_or(0) - 1;
+        let data_max_y = data_all_vals.max().unwrap_or(0) + 1;
 
-    let data: Vec<(f32, f32)> = chart_data_points.data_points
-        .iter()
-        .enumerate()
-        .map(|(i, &v)| (i as f32 / 5.0, v))
-        .collect();
+        // 5. 建立 ChartContext
+        let mut chart = ChartBuilder::on(&data_area)
+            .caption(&self.display_name, ("Serif", 40))
+            .x_label_area_size(60)
+            .y_label_area_size(80)
+            .build_cartesian_2d(data_min_x..data_max_x, data_min_y..data_max_y)
+            .map_err(|e| e.to_string())?;
 
-    chart.draw_series(LineSeries::new(data, &BLUE))
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
-    
-    drawing_area.present()
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+        // 6. 繪製網格與軸
+        chart.configure_mesh()
+            .x_desc("Index")
+            .y_desc("Value")
+            .axis_desc_style(("Serif", 30))
+            .label_style(("Serif", 20))
+            .draw()
+            .map_err(|e| e.to_string())?;
 
-    Ok(file_path)
-}
+        // 7. 準備資料點
+        let points1: Vec<(i32, i32)> = self.data_points_1.iter()
+            .enumerate().map(|(i, &v)| (i as i32, v)).collect();
+        let points2: Vec<(i32, i32)> = self.data_points_2.iter()
+            .enumerate().map(|(i, &v)| (i as i32, v)).collect();
 
-pub fn scatter_chart_generate(
-    chart_data_points: &mut ChartDataPoints,
-    chart_name: &str
-) -> Result<PathBuf, String> {
-    let file_path = directory_mod::create_file(store_folder(), &format!("{}.png", chart_name))?;
-    let _file_path = file_path.clone();
+        let data_dot_size = 2;
+        // 8. 繪製序列 1 (紅色)
+        chart.draw_series(LineSeries::new(points1.clone(), &RED))
+            .map_err(|e| e.to_string())?;
+        chart.draw_series(
+            points1.iter().map(|&p| Circle::new(p, data_dot_size, RED.filled()))
+        ).map_err(|e| e.to_string())?;
+        // 9. 繪製序列 2 (藍色)
+        chart.draw_series(LineSeries::new(points2.clone(), &BLUE))
+            .map_err(|e| e.to_string())?;
+        chart.draw_series(
+            points2.iter().map(|&p| Circle::new(p, data_dot_size, BLUE.filled()))
+        ).map_err(|e| e.to_string())?;
 
-    let drawing_area = BitMapBackend::new(&_file_path, (960, 540))
-        .into_drawing_area();
-    drawing_area
-        .fill(&WHITE)
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+        // 10. 手動繪製圖例於 legend_area
+        legend_area.fill(&WHITE).map_err(|e| e.to_string())?;
+        // 準備文字樣式
+        let text_style = ("Serif", 25).into_text_style(&legend_area);
+        // Series 1 標示
+        let legend_line_size = 40;
+        let legend_font_dist = 10;
+        legend_area.draw(&PathElement::new(vec![(120, 0), (120 + legend_line_size, 0)], &RED,))
+            .map_err(|e| e.to_string())?;
+        legend_area.draw_text("Series 1", &text_style, (110, 0 + legend_font_dist),)
+            .map_err(|e| e.to_string())?;
+        // Series 2 標示
+        legend_area.draw(&PathElement::new(vec![(220, 0), (220 + legend_line_size, 0)], &BLUE,))
+            .map_err(|e| e.to_string())?;
+        legend_area.draw_text("Series 2", &text_style, (210, 0 + legend_font_dist),)
+            .map_err(|e| e.to_string())?;
 
-    let max_index = chart_data_points.data_points.len() as f32;
-    let mut chart = ChartBuilder::on(&drawing_area)
-        .caption("Scatter Chart (f32)", ("sans-serif", 20))
-        .margin(10)
-        .x_label_area_size(30).y_label_area_size(30)
-        .build_cartesian_2d(0f32..(max_index / 5.0), 0f32..10f32)
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
+        // 11. 輸出圖檔
+        root.present().map_err(|e| e.to_string())
+    }
 
-    chart.configure_mesh()
-        .x_desc("X value").y_desc("Y value")
-        .draw()
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
-
-    let scatter_data: Vec<(f32, f32)> = chart_data_points
-        .data_points
-        .iter()
-        .enumerate()
-        .map(|(i, &v)| (i as f32 / 5.0, v))
-        .collect();
-
-    // 繪製散點：圓點半徑 5，紅色實心
-    chart.draw_series(
-            scatter_data
-                .into_iter()
-                .map(|(x, y)| Circle::new((x, y), 5, RED.filled()))
-        )
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
-
-    drawing_area.present()
-        .map_err(|e| format!("Generate line chart failed: {}", e) )?;
-
-    Ok(file_path)
-}
-
-pub fn chart_send<P: AsRef<Path>>(chart_path: P) -> Result<String, String> {
-    let bytes = fs::read(chart_path.as_ref())
-        .map_err(|e| format!("Cannot read file: {}", e))?;
-    let b64 = general_purpose::STANDARD.encode(bytes);
-    Ok(b64)
+    pub fn send_to_front(&self) -> Result<String, String> {
+        let bytes = fs::read(self.file_path.clone())
+            .map_err(|e| format!("Cannot read file: {}", e))?;
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
 }
 
 #[tauri::command]
 pub async fn chart_generate(app: AppHandle) -> Result<String, String> {
-    let start = Instant::now();
-
     let global_state = app.state::<GlobalState>();
-    let mut state = global_state.speed_data_points.lock().await;
-    let path = line_chart_generate(&mut *state, "current_chart").map_err(|e| {
-        error!("{}", e);
-        e
-    })?;
-    let b64 = chart_send(&path).map_err(|e| {
-        error!("{}", e);
-        e
-    })?;
-    
-    info!("耗時: {:.2?}", start.elapsed());
-    Ok(b64)
+    let rand_data_points = global_state.rand_data_points.lock().await;
+    rand_data_points.line_chart_generate()?;
+    rand_data_points.send_to_front()
 }

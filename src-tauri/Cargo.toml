@@ -35,3 +35,4 @@ chrono = "0.4.40"
 tokio = { version = "1.45.0", features = ["rt-multi-thread", "macros", "time"] }
 tokio-serial = "5.4.5"
 libloading = "0.8.7"
+num-traits = "0.2.19"

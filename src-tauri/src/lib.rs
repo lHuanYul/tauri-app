@@ -15,7 +15,7 @@ pub mod mods {
 }
 use mods::{
     plotter_mod::{
-        chart_generate, ChartDataPoints
+        chart_generate, ChartRandDatas
     }, directory_mod, log_mod, loop_cmd_mod::{
         cmd_1kms_loop,
         cmd_50ms_loop,
@@ -44,7 +44,9 @@ pub struct GlobalState {
     pub transfer_buffer:    AsyncMutex<TrReBuffer>,
     pub receive_buffer:     AsyncMutex<TrReBuffer>,
     pub matlab_engine:      SyncMutex<MatlabEngine>,
-    pub speed_data_points:  AsyncMutex<ChartDataPoints>,
+    pub rand_data_points:   AsyncMutex<ChartRandDatas>,
+    // pub u32_data_points:  AsyncMutex<ChartDataPoints>,
+    // pub u8_data_points:  AsyncMutex<ChartDataPoints>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,7 +58,7 @@ pub fn run() {
         transfer_buffer:    AsyncMutex::new(TrReBuffer::new(5)),
         receive_buffer:     AsyncMutex::new(TrReBuffer::new(5)),
         matlab_engine:      SyncMutex::new(MatlabEngine::new()),
-        speed_data_points:  AsyncMutex::new(ChartDataPoints::new(100)),
+        rand_data_points:   AsyncMutex::new(ChartRandDatas::new_rand("temp", "disp", 100)),
     };
     global_state.root_path = directory_mod::init();
     

@@ -3965,6 +3965,7 @@ dependencies = [
  "libc",
  "libloading 0.8.7",
  "log",
+ "num-traits",
  "plotters",
  "rand 0.9.1",
  "serde",

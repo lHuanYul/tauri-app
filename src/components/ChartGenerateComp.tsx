@@ -7,7 +7,6 @@ const ChartGenerateComp: React.FC = () => {
     useEffect(() => {
         const interval = setInterval(async () => {
             try {
-                // 每秒呼叫 update_chart，若累計到 10 筆資料則回傳圖像 Base64
                 const response: string | null = await invoke('chart_generate');
                 if (response) {
                     setImgSrc(`data:image/png;base64,${response}`);
@@ -15,7 +14,7 @@ const ChartGenerateComp: React.FC = () => {
             } catch (error) {
                 console.error('更新圖像失敗:', error);
             }
-        }, 200); // 每秒更新一次
+        }, 500);
 
         return () => clearInterval(interval);
     }, []);

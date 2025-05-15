@@ -65,7 +65,7 @@ impl MatlabEngine {
                 me.eng_get_var = Some(get_var_fn);
             }
             Err(e) => {
-                error!("載入 libeng.dll 失敗，MATLAB 功能將略過：{}", e);
+                error!("載入 libeng.dll 失敗，MATLAB 功能將略過：  {}", e);
             }
         }
         // 載入資料庫 libmx.dll
@@ -81,7 +81,7 @@ impl MatlabEngine {
                 me.mx_get_pr = Some(get_pr_fn);
             }
             Err(e) => {
-                error!("載入 libmx.dll 失敗，MATLAB 功能將略過：{}", e);
+                error!("載入 libmx.dll 失敗，MATLAB 功能將略過：  {}", e);
             }
         }
         // 初始化引擎

@@ -31,7 +31,7 @@ impl PortManager {
     /// serial port is not yet opened.
     fn check_open(&self) -> Result<(), String> {
         if self.port.is_none() {
-            let message = format!("Port not openned");
+            let message = "Port not openned".into();
             error!("{}", message);
             return Err(message)
         }
@@ -134,7 +134,7 @@ impl PortManager {
         })?;
 
         let packet_info = packet.read("Port write succeeded:")?;
-        Ok(format!("{}", packet_info))
+        Ok(packet_info)
     }
 
     /// Reads 10 bytes from the serial port and parses them into a `UartPacket`.

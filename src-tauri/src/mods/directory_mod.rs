@@ -12,7 +12,7 @@ pub fn init() -> SyncMutex<PathBuf> {
 
     // 將路徑轉為字串並記錄日誌 / Convert path to string and log
     let cwd_str  = path_to_string(&working_directory).unwrap_or_else(|e| e);
-    info!("Rust working directory: {}", cwd_str);
+    info!("Rust working directory: {cwd_str}");
     // 回傳一個 Mutex 保護的 PathBuf / Return the PathBuf wrapped in a Mutex
     SyncMutex::new(working_directory)
 }
@@ -25,7 +25,7 @@ pub fn get_working_directory() -> Result<PathBuf, String> {
     })?;
     // 轉成字串格式並記錄偵錯日誌 / Convert to string and debug log
     let working_directory_str = path_to_string(&working_directory).unwrap_or_else(|e| e);
-    debug!("Current working directory: {:?}", working_directory_str);
+    debug!("Current working directory: {working_directory_str:?}");
     Ok(working_directory)
 }
 
@@ -39,7 +39,7 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, String> {
     } else {
         // 若 to_str 失敗，使用 lossy 轉換並警告 / Fallback to lossy conversion
         let result = path_ref.to_string_lossy().into_owned();
-        warn!("Convert path to string failed: {}", result);
+        warn!("Convert path to string failed: {result}");
         Err(result)
     }
 }
@@ -48,7 +48,7 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, String> {
 /// Create all directories for the given folder path
 pub fn create_folder<P: AsRef<Path>>(folder_path: P) -> Result<PathBuf, String> {
     let path = Path::new(folder_path.as_ref());
-    fs::create_dir_all(&path).map_err(|e| format!("Fail to create folder '{:?}': {}", path, e))?;
+    fs::create_dir_all(&path).map_err(|e| format!("Fail to create folder '{path:?}': {}", e))?;
 
     debug!("Created folder: {:?}", path);
     Ok(path.to_path_buf())
@@ -60,15 +60,15 @@ pub fn create_file<P: AsRef<Path>>(folder_path: P, file_name: &str) -> Result<Pa
     // 確保資料夾存在 / Ensure folder exists
     let path = create_folder(folder_path)?;
 
-    let file_path = path.join(format!("{}", file_name));
+    let file_path = path.join(format!("{file_name}"));
     // 檢查檔案是否已存在 / Check if file exists
     if file_path.exists() && file_path.is_file() {
-        let message = format!("File already exists: {:?}", file_path);
+        let message = format!("File already exists: {file_path:?}");
         debug!("{}", message);
         return Ok(file_path);
     }
     // 嘗試建立新檔案 / Create new file
-    File::create(&file_path).map_err(|e| format!("Fail to create file '{:?}': {}", file_path, e))?;
+    File::create(&file_path).map_err(|e| format!("Fail to create file '{file_path:?}': {}", e))?;
     debug!("Created file: {:?}", file_path);
     Ok(file_path)
 }

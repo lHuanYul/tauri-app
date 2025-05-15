@@ -14,7 +14,7 @@ const   PORT_READ_TIMEOUT_US:       u64     = 1000;
 /// Maximum receive buffer size (including start and end codes)
 const   MAX_RECEIVE_BUFFER_SIZE:    usize   = PACKET_MAX_SIZE;
 
-/// 非同步序列埠管理器<br>
+/// 非同步序列埠管理器 <br>
 /// Asynchronous serial port manager
 pub struct PortAsyncManager {
     port_name: Option<String>,          // 序列埠名稱／port name
@@ -22,7 +22,7 @@ pub struct PortAsyncManager {
     shutdown_tx: Option<Sender<bool>>,  // 停止訊號傳送者／shutdown signal sender
 }
 impl PortAsyncManager {
-    /// 建立新管理器，尚未開啟任何埠<br>
+    /// 建立新管理器，尚未開啟任何埠 <br>
     /// Creates a new manager with no open port
     pub fn new() -> Self {
         Self {
@@ -32,14 +32,14 @@ impl PortAsyncManager {
         }
     }
 
-    /// 列出所有可用序列埠資訊<br>
+    /// 列出所有可用序列埠資訊 <br>
     /// Lists all available serial port infos asynchronously
     pub async fn available() -> Result<Vec<SerialPortInfo>, String> {
         let ports = available_ports().map_err(|e| {format!("Get available ports failed: {}", e)})?;
         Ok(ports)
     }
 
-    /// 開啟指定序列埠並啟動讀寫迴圈<br>
+    /// 開啟指定序列埠並啟動讀寫迴圈 <br>
     /// Opens the specified port and starts the read/write loop
     pub async fn open(
         &mut self,
@@ -63,7 +63,7 @@ impl PortAsyncManager {
         Ok(())
     }
 
-    /// 關閉目前序列埠，並停止讀寫迴圈<br>
+    /// 關閉目前序列埠，並停止讀寫迴圈 <br>
     /// Closes the current port and stops the read/write loop
     pub async fn close(&mut self) -> Result<(), String> {
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
@@ -83,14 +83,14 @@ impl PortAsyncManager {
     }
 }
 
-/// 內部序列埠管理結構<br>
+/// 內部序列埠管理結構 <br>
 /// Internal struct for managing serial port operations
 pub struct PortAsyncManagerInner {
     reader: Mutex<Option<ReadHalf<SerialStream>>>,  // 讀取半部／read half
     writer: Mutex<Option<WriteHalf<SerialStream>>>, // 寫入半部／write half
 }
 impl PortAsyncManagerInner {
-    /// 建立內部管理實例<br>
+    /// 建立內部管理實例 <br>
     /// Creates the inner manager instance
     fn new() -> Self {
         Self {
@@ -99,16 +99,16 @@ impl PortAsyncManagerInner {
         }
     }
 
-    /// 檢查埠是否開啟，否則回傳錯誤<br>
+    /// 檢查埠是否開啟，否則回傳錯誤 <br>
     /// Checks if the port is open, returns error if not
     async fn check_open(&self) -> Result<(), String> {
         if self.reader.lock().await.is_none() || self.writer.lock().await.is_none() {
-            return Err(format!("Port is not open"));
+            return Err("Port is not open".into());
         }
         Ok(())
     }
 
-    /// 非同步讀取並解析完整封包<br>
+    /// 非同步讀取並解析完整封包 <br>
     /// Asynchronously reads and parses one full UartPacket
     async fn read_packet(&self) -> Result<UartPacket, String> {
         self.check_open().await?;
@@ -139,7 +139,7 @@ impl PortAsyncManagerInner {
         Ok(packet)
     }
 
-    /// 非同步寫入封包到序列埠<br>
+    /// 非同步寫入封包到序列埠 <br>
     /// Asynchronously writes a UartPacket to the serial port
     async fn write_packet(&self, packet: UartPacket) -> Result<(), String> {
         self.check_open().await?;
@@ -150,7 +150,7 @@ impl PortAsyncManagerInner {
         Ok(())
     }
 
-    /// 建立並啟動讀寫背景工作迴圈<br>
+    /// 建立並啟動讀寫背景工作迴圈 <br>
     /// Spawns background tasks for continuous read/write loops
     fn spawn_read_write_loop(
         self: &Arc<Self>,
@@ -209,7 +209,7 @@ impl PortAsyncManagerInner {
     }
 }
 
-/// 列出可用序列埠名稱<br>
+/// 列出可用序列埠名稱 <br>
 /// Tauri command: list available port names
 #[tauri::command]
 pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
@@ -219,7 +219,7 @@ pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-/// 檢查序列埠是否已開啟<br>
+/// 檢查序列埠是否已開啟 <br>
 /// Tauri command: check if port is open
 #[tauri::command]
 pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
@@ -228,7 +228,7 @@ pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     state.check_open().await.is_ok()
 }
 
-/// 開啟指定序列埠<br>
+/// 開啟指定序列埠 <br>
 /// Tauri command: open specified port
 #[tauri::command]
 pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<String, String> {
@@ -243,7 +243,7 @@ pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<St
     Ok(_msg)
 }
 
-/// 關閉目前序列埠<br>
+/// 關閉目前序列埠 <br>
 /// Tauri command: close current port
 #[tauri::command]
 pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
@@ -253,12 +253,12 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
         error!("{}", e);
         e.clone()
     })?;
-    let _msg = format!("Close port succeed");
-    info!("{}", _msg);
-    Ok(_msg)
+    let message = "Close port succeed".into();
+    info!("{}", message);
+    Ok(message)
 }
 
-/// 測試封包寫入與讀取<br>
+/// 測試封包寫入與讀取 <br>
 /// Tauri command: test packet write and read
 #[tauri::command]
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
@@ -267,5 +267,5 @@ pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
         error!("{}", message);
         message
     })?;
-    Ok(format!("Push finish"))
+    Ok("Push finish".into())
 }
