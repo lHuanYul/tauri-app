@@ -1,3 +1,8 @@
+PC+esp32 & stm32+esp32
+PC: rust tokio async 
+STM32: stm32g431 c
+esp32: ESP32-D0WDQ6 c
+
 Box<dyn Error>
 
 pub fn scatter_chart_generate(

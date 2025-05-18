@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Manager};
 use std::{path::PathBuf, sync::Mutex as SyncMutex};
-use tokio::sync::Mutex as AsyncMutex;
-use log::LevelFilter;
+use tokio::{runtime::Runtime, sync::Mutex as AsyncMutex};
+use log::{error, LevelFilter};
 pub mod mods {
     pub mod plotter_mod;
     pub mod loop_cmd_mod;
@@ -12,11 +12,10 @@ pub mod mods {
     pub mod packet_mod;
     pub mod port_async_mod;
     pub mod mcu_control_mod;
+    pub mod wifi_mod;
 }
 use mods::{
-    plotter_mod::{
-        chart_generate, ChartRandDatas
-    }, directory_mod, log_mod, loop_cmd_mod::{
+    directory_mod, log_mod, loop_cmd_mod::{
         cmd_1kms_loop,
         cmd_50ms_loop,
     }, map_mod::{
@@ -24,9 +23,11 @@ use mods::{
         map_save,
     }, matlab_mod::{
         run_engine_plot, MatlabEngine
+    }, packet_mod::TrReBuffer, plotter_mod::{
+        chart_generate, ChartRandDatas
     }, port_async_mod::{
         cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test, PortAsyncManager
-    }, packet_mod::TrReBuffer,
+    }, wifi_mod::WifiReceive,
 };
 
 /// Set const
@@ -45,6 +46,7 @@ pub struct GlobalState {
     pub receive_buffer:     AsyncMutex<TrReBuffer>,
     pub matlab_engine:      SyncMutex<MatlabEngine>,
     pub rand_data_points:   AsyncMutex<ChartRandDatas>,
+    pub wifi_tr_re:         AsyncMutex<WifiReceive>,
     // pub u32_data_points:  AsyncMutex<ChartDataPoints>,
     // pub u8_data_points:  AsyncMutex<ChartDataPoints>,
 }
@@ -59,8 +61,23 @@ pub fn run() {
         receive_buffer:     AsyncMutex::new(TrReBuffer::new(5)),
         matlab_engine:      SyncMutex::new(MatlabEngine::new()),
         rand_data_points:   AsyncMutex::new(ChartRandDatas::new_rand("temp", "disp", 100)),
+        wifi_tr_re:         AsyncMutex::new(WifiReceive::new()),
     };
     global_state.root_path = directory_mod::init();
+
+    let rt = Runtime::new().expect("failed to create Tokio runtime");
+    rt.block_on(async {
+        let mut wifi = global_state.wifi_tr_re.lock().await;
+
+        let _ = wifi.tcp_start("0.0.0.0:60000").await.map_err(|e| {
+            let message = format!("UDP start failed: {}", e);
+            error!("{}", message)
+        });
+        let _ = wifi.udp_start("0.0.0.0:60001").await.map_err(|e| {
+            let message = format!("UDP start failed: {}", e);
+            error!("{}", message)
+        });
+    });
     
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
