@@ -20,7 +20,7 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
     // handlePOCClick: 選擇 Port O/C 頁面
     // Select the Port Open/Close page
     const handlePOCClick = () => {
-        const name = "open_close_port";
+        const name = "uart_port_oc";
         localStorage.setItem("pageName", name);
         setPageName(name);
     };
@@ -28,7 +28,7 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
     // handlePTrClick: 選擇 Port Transmit 頁面
     // Select the Port Transmit page
     const handlePTrClick = () => {
-        const name = "port_transmit";
+        const name = "uart_port_control";
         localStorage.setItem("pageName", name);
         setPageName(name);
     };
@@ -83,7 +83,7 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
             <button
                 onClick={handlePOCClick}
                 className={
-                    pageName === "open_close_port"
+                    pageName === "uart_port_oc"
                         ? "page_select-button_list-select"
                         : "page_select-button_list-defalt"
                 }
@@ -94,7 +94,7 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
             <button
                 onClick={handlePTrClick}
                 className={
-                    pageName === "port_transmit"
+                    pageName === "uart_port_control"
                         ? "page_select-button_list-select"
                         : "page_select-button_list-defalt"
                 }

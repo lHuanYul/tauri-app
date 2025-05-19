@@ -1,6 +1,8 @@
 use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, io};
 use log::{error, info};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, task::{JoinHandle}};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, runtime::Runtime, task::JoinHandle};
+
+use crate::GlobalState;
 
 // TCP 發送函式：connect → write_all → close
 pub async fn tcp_send_packet() -> Result<(), Box<dyn error::Error>> {
@@ -161,4 +163,20 @@ impl WifiReceive {
             }
         }
     }
+}
+
+pub fn setup(global_state: &GlobalState) {
+    let rt = Runtime::new().expect("failed to create Tokio runtime");
+    rt.block_on(async {
+        let mut wifi = global_state.wifi_tr_re.lock().await;
+
+        let _ = wifi.tcp_start("0.0.0.0:60000").await.map_err(|e| {
+            let message = format!("UDP start failed: {}", e);
+            error!("{}", message)
+        });
+        let _ = wifi.udp_start("0.0.0.0:60001").await.map_err(|e| {
+            let message = format!("UDP start failed: {}", e);
+            error!("{}", message)
+        });
+    });
 }

@@ -1,8 +1,8 @@
-// PortOCComponent：用於開啟或關閉通訊埠的元件 / Component for opening and closing serial ports
+// UartPortOCComponent：用於開啟或關閉通訊埠的元件 / Component for opening and closing serial ports
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const PortOCComp = () => {
+const UartPortOCComp = () => {
     // ports：可用埠清單
     // list of available ports
     const [ports, setPorts] = useState<string[]>([]);
@@ -110,4 +110,4 @@ const PortOCComp = () => {
     );
 };
 
-export default PortOCComp;
+export default UartPortOCComp;

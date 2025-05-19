@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import PortOCComp from './components/PortOCComp';
-import SerialComp from './components/SerialComp';
+import UartPortOCComp from './components/UartPortOCComp';
+import UartControlComp from './components/UartControlComp';
 import PageSelectComp from './components/PageSelectComp';
 import ChartGenerateComp from './components/ChartGenerateComp';
 import MapGeneratorComp from './components/MapGeneratorComp';
@@ -13,7 +13,7 @@ const App = () => {
     }, [])*/
 
     const [pageName, setPageName] = useState(
-        () => localStorage.getItem("pageName") || "open_close_port"
+        () => localStorage.getItem("pageName") || "uart_port_oc"
     );
 
     useEffect(() => {
@@ -27,11 +27,11 @@ const App = () => {
 
     let content;
     switch (pageName) {
-        case "open_close_port":
-            content = <PortOCComp />;
+        case "uart_port_oc":
+            content = <UartPortOCComp />;
             break;
-        case "port_transmit":
-            content = <SerialComp />;
+        case "uart_port_control":
+            content = <UartControlComp />;
             break;
         case "chart_generate":
             content = <ChartGenerateComp />;

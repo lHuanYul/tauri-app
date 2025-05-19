@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const SerialComp = () => {
+const UartControlComp = () => {
     const [response, setResponse] = useState(() => sessionStorage.getItem("TRResponse") || "");
     useEffect(() => { sessionStorage.setItem("TRResponse", response); }, [response]);
 
@@ -32,4 +32,4 @@ const SerialComp = () => {
     );
 };
 
-export default SerialComp;
+export default UartControlComp;
