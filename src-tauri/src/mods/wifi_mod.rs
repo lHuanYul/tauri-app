@@ -1,5 +1,6 @@
 use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, io};
 use log::{error, info};
+use tauri::{App, Manager};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, runtime::Runtime, task::JoinHandle};
 
 use crate::GlobalState;
@@ -165,7 +166,8 @@ impl WifiReceive {
     }
 }
 
-pub fn setup(global_state: &GlobalState) {
+pub fn setup(app: &mut App) {
+    let global_state = app.state::<GlobalState>();
     let rt = Runtime::new().expect("failed to create Tokio runtime");
     rt.block_on(async {
         let mut wifi = global_state.wifi_tr_re.lock().await;

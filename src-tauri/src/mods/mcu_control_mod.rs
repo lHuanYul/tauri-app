@@ -112,8 +112,8 @@ pub async fn write_speed(app: AppHandle, data: &[u8]) ->Result<(), String> {
     let bytes: [u8; 4] = data[0..4].try_into().unwrap();
     let value = u32::from_be_bytes(bytes);
     let global_state = app.state::<GlobalState>();
-    let mut chart_state = global_state.rand_data_points.lock().await;
-    // chart_state.push(value);
+    let mut chart_state = global_state.speed_datas.lock().await;
+    chart_state.push(value);
     if data.len() > 4 {
         error!(
             "Speed 資料有多餘 {} 個 byte 已忽略",

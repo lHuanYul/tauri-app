@@ -15,19 +15,12 @@ pub mod mods {
     pub mod wifi_mod;
 }
 use mods::{
-    directory_mod, log_mod, loop_cmd_mod::{
-        cmd_1kms_loop,
-        cmd_50ms_loop,
-    }, map_mod::{
-        map_load,
-        map_save,
-    }, matlab_mod::{
-        run_engine_plot, MatlabEngine
-    }, packet_mod::TrReBuffer, plotter_mod::{
-        chart_generate, ChartRandDatas
-    }, port_async_mod::{
-        cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test, PortAsyncManager
-    }, wifi_mod::{self, WifiReceive},
+    directory_mod, log_mod, loop_cmd_mod::{cmd_1kms_loop, cmd_50ms_loop,
+    }, map_mod::{map_load,  map_save,
+    }, matlab_mod::{self, run_engine_plot
+    },packet_mod, plotter_mod::{self, chart_generate
+    }, port_async_mod::{self, cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test
+    }, wifi_mod,
 };
 
 /// Set const
@@ -40,13 +33,14 @@ pub const GENERATE_BASE_FOLDER_PATH: &str = "generate_base";
 pub const MATLAB_LIBENG_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win64/libeng.dll";
 
 pub struct GlobalState {
-    pub root_path:          SyncMutex<PathBuf>,
-    pub main_port:          AsyncMutex<PortAsyncManager>,
-    pub transfer_buffer:    AsyncMutex<TrReBuffer>,
-    pub receive_buffer:     AsyncMutex<TrReBuffer>,
-    pub matlab_engine:      SyncMutex<MatlabEngine>,
-    pub rand_data_points:   AsyncMutex<ChartRandDatas>,
-    pub wifi_tr_re:         AsyncMutex<WifiReceive>,
+    pub root_path:          SyncMutex <PathBuf>,
+    pub main_port:          AsyncMutex<port_async_mod::PortAsyncManager>,
+    pub wifi_tr_re:         AsyncMutex<wifi_mod::WifiReceive>,
+    pub transfer_buffer:    AsyncMutex<packet_mod::TrReBuffer>,
+    pub receive_buffer:     AsyncMutex<packet_mod::TrReBuffer>,
+    pub matlab_engine:      SyncMutex <matlab_mod::MatlabEngine>,
+    pub rand_datas:         AsyncMutex<plotter_mod::ChartRandDatas>,
+    pub speed_datas:        AsyncMutex<plotter_mod::ChartSpeedDatas>,
     // pub u32_data_points:  AsyncMutex<ChartDataPoints>,
     // pub u8_data_points:  AsyncMutex<ChartDataPoints>,
 }
@@ -55,13 +49,14 @@ pub struct GlobalState {
 pub fn run() {
     log_mod::init();
     let global_state = GlobalState {
-        root_path:          SyncMutex::new(PathBuf::new()),
-        main_port:          AsyncMutex::new(PortAsyncManager::new()),
-        transfer_buffer:    AsyncMutex::new(TrReBuffer::new(5)),
-        receive_buffer:     AsyncMutex::new(TrReBuffer::new(5)),
-        matlab_engine:      SyncMutex::new(MatlabEngine::new()),
-        rand_data_points:   AsyncMutex::new(ChartRandDatas::new_rand("temp", "disp", 100)),
-        wifi_tr_re:         AsyncMutex::new(WifiReceive::new()),
+        root_path:          SyncMutex ::new(PathBuf::new()),
+        main_port:          AsyncMutex::new(port_async_mod::PortAsyncManager::new()),
+        wifi_tr_re:         AsyncMutex::new(wifi_mod::WifiReceive::new()),
+        transfer_buffer:    AsyncMutex::new(packet_mod::TrReBuffer::new(5)),
+        receive_buffer:     AsyncMutex::new(packet_mod::TrReBuffer::new(5)),
+        matlab_engine:      SyncMutex ::new(matlab_mod::MatlabEngine::new()),
+        rand_datas:         AsyncMutex::new(plotter_mod::ChartRandDatas::new_rand("temp", "disp", 100)),
+        speed_datas:        AsyncMutex::new(plotter_mod::ChartSpeedDatas::new("speed", "Speed", 100)),
     };
     
     tauri::Builder::default()
@@ -80,10 +75,9 @@ pub fn run() {
             map_save,
             chart_generate,
         ])
-        .setup(|app_state| {
-            let global_state = app_state.state::<GlobalState>();
-            directory_mod::setup(&global_state);
-            wifi_mod::setup(&global_state);
+        .setup(|app| {
+            directory_mod::setup(app);
+            wifi_mod::setup(app);
             Ok(())
         })
         .run(tauri::generate_context!())
