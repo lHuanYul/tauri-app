@@ -46,7 +46,7 @@ impl UartPacket {
     /// Formats packet contents into a string for display
     pub fn show(&self) -> String {
         format!(
-            "\n>>> {}\n>>>   Data: {:?}\n>>> {}",
+            ">>> {}\n>>>   {:?}\n>>> {}",
             self.start as char,
             self.data,
             self.end as char
@@ -170,7 +170,7 @@ impl TrReBuffer {
         let count = self.packets.len().min(n);
 
         for (idx, pkt) in self.packets.iter().take(count).enumerate() {
-            info!("TrReBuffer show[{}]: {}", idx, pkt.show());
+            info!("TrReBuffer show[{}]:\n{}", idx, pkt.show());
         }
 
         // 如果 n 超過目前封包數，也可以選擇再 warn 一下

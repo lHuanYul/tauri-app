@@ -128,7 +128,10 @@ impl PortAsyncManagerInner {
                 Err(_) => {
                     if buffer.is_empty() { return Err(format!("{}Read nothing", CODE_TRACE)); }
                     if *buffer.last().unwrap() != PACKET_END_CODE {
-                        return Err(format!("Read timeout at {} bytes (or no end code)", buffer.len()));
+                        return Err(format!(
+                            "Read timeout at {} bytes (or no end code)\n>>> {:?}",
+                            buffer.len(), buffer
+                        ));
                     }
                     break;
                 }
@@ -174,7 +177,7 @@ impl PortAsyncManagerInner {
                     continue;
                 }
                 let packet = result.unwrap();
-                info!("Port read succeed: {}", packet.show());
+                info!("Port read succeed:\n{}", packet.show());
                 let _ = {
                     let state = read_handle.state::<GlobalState>();
                     let mut receive_buffer = state.receive_buffer.lock().await;
@@ -200,10 +203,11 @@ impl PortAsyncManagerInner {
                     sleep(Duration::from_millis(10)).await;
                     continue;
                 }
-                let _ = arc_write.write_packet(maybe_pkt.unwrap()).await.map_err(|e| {
+                let packet = maybe_pkt.unwrap();
+                let _ = arc_write.write_packet(packet.clone()).await.map_err(|e| {
                     error!("Port write failed: {}", e);
                 });
-                info!("Port write succeed");
+                info!("Port write succeed:\n{}", packet.show());
             }
         });
     }

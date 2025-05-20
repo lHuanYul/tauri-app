@@ -13,6 +13,7 @@ pub mod mods {
     pub mod port_async_mod;
     pub mod mcu_control_mod;
     pub mod wifi_mod;
+    pub mod box_error_mod;
 }
 use mods::{
     directory_mod, log_mod, loop_cmd_mod::{cmd_1kms_loop, cmd_50ms_loop,

@@ -1,27 +1,23 @@
-use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, io};
-use log::{error, info};
+use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, net::UdpSocket as SyncUdpSocket};
+use log::{error, info, warn};
 use tauri::{App, Manager};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, runtime::Runtime, task::JoinHandle};
-
-use crate::GlobalState;
+use crate::{GlobalState, mods::box_error_mod::box_string_error};
 
 // TCP 發送函式：connect → write_all → close
 pub async fn tcp_send_packet() -> Result<(), Box<dyn error::Error>> {
     let addr = "192.168.0.20:60000";
     let data = b"Hello from Rust by TCP";
     // 1. 建立 TCP 連線（三次握手）
-    let mut stream = TcpStream::connect(addr).await
-        .map_err(|e| format!("TCP connect({}) failed: {}", addr, e) )?;
+    let mut stream = TcpStream::connect(addr).await?;
     info!("TCP connected to {}", addr);
 
     // 2. 發送整段資料
-    stream.write_all(data).await
-        .map_err(|e| format!("TCP send to {} failed: {}", addr, e) )?;
+    stream.write_all(data).await?;
     info!("TCP sent {} bytes to {}", data.len(), addr);
 
     // 3. 關閉連線
-    stream.shutdown().await
-        .map_err(|e| format!("TCP shutdown failed: {}", e) )?;
+    stream.shutdown().await?;
     Ok(())
 }
 
@@ -36,29 +32,46 @@ pub async fn udp_send_packet() -> Result<(), Box<dyn error::Error>> {
     Ok(())
 }
 
+const TCP_PORT: &str = "60000";
+const UDP_PORT: &str = "60001";
+
 pub struct WifiReceive {
+    device_ip: String,
     tcp_shutdown: Arc<AtomicBool>,
     tcp_handle: Option<JoinHandle<()>>,
     udp_shutdown: Arc<AtomicBool>,
     udp_handle: Option<JoinHandle<()>>,
 }
-
 impl WifiReceive {
     /// 建構新的 WifiTrRe 實例
     pub fn new() -> Self {
-        Self {
+        let mut new = WifiReceive {
+            device_ip:    "0.0.0.0".into(),
             tcp_shutdown: Arc::new(AtomicBool::new(true)),
-            tcp_handle: None,
+            tcp_handle:   None,
             udp_shutdown: Arc::new(AtomicBool::new(true)),
-            udp_handle: None,
-        }
+            udp_handle:   None,
+        };
+        SyncUdpSocket::bind("0.0.0.0:0")
+            .map_err(|e| warn!("SyncUdpSocket bind failed: {}", e))
+            .map(|socket| {
+                socket.connect("8.8.8.8:80")
+                    .map_err(|e| warn!("SyncUdpSocket connect failed: {}", e))
+                    .ok();
+                socket.local_addr()
+                    .map_err(|e| warn!("SyncUdpSocket get local_addr failed: {}", e))
+                    .map(|addr| new.device_ip = addr.ip().to_string())
+                    .ok();
+            }).ok();
+        new
     }
 
     /// 啟動 TCP 接收任務
-    pub async fn tcp_start(&mut self, listen_addr: &str) -> Result<(), Box<dyn error::Error>> {
+    pub async fn tcp_start(&mut self) -> Result<(), Box<dyn error::Error>> {
         // 清除停止旗標
         self.tcp_shutdown.store(false, Ordering::SeqCst);
-        let listener = TcpListener::bind(listen_addr).await?;
+        let listener = 
+            TcpListener::bind(format!("{}:{}", self.device_ip, TCP_PORT)).await?;
         info!("TCP listening on {}", listener.local_addr()?);
 
         let shutdown = self.tcp_shutdown.clone();
@@ -102,10 +115,7 @@ impl WifiReceive {
     pub async fn tcp_receive_stop(&mut self) -> Result<(), Box<dyn error::Error>> {
         self.tcp_shutdown.store(true, Ordering::SeqCst);
         match self.tcp_handle.take() {
-            None => Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "TCP task is not running",
-            ))),
+            None => Err(box_string_error("TCP task is not running")),
             Some(handle) => {
                 let _ = handle.await;
                 Ok(())
@@ -114,12 +124,14 @@ impl WifiReceive {
     }
 
     /// 啟動 UDP 接收迴圈，只要呼叫 stop 就會跳出迴圈
-    pub async fn udp_start(&mut self, listen_addr: &str) -> Result<(), Box<dyn error::Error>> {
+    pub async fn udp_start(&mut self) -> Result<(), Box<dyn error::Error>> {
         // 先重置停止旗標
         self.udp_shutdown.store(false, Ordering::SeqCst);
 
         // 綁定 socket
-        let socket = Arc::new(UdpSocket::bind(listen_addr).await?);
+        let socket = Arc::new(
+            UdpSocket::bind(format!("{}:{}", self.device_ip, UDP_PORT)).await?
+        );
         info!("UDP listening on {}", socket.local_addr()?);
 
         // clone 一份到背景任務
@@ -153,10 +165,7 @@ impl WifiReceive {
 
         match self.udp_handle.take() {
             // 已經沒有任務在跑，回傳錯誤
-            None => Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "UDP task is not running",
-            ))),
+            None => Err(box_string_error("UDP task is not running")),
             // 有任務在跑，等待它結束
             Some(handle) => {
                 let _ = handle.await;
@@ -172,12 +181,12 @@ pub fn setup(app: &mut App) {
     rt.block_on(async {
         let mut wifi = global_state.wifi_tr_re.lock().await;
 
-        let _ = wifi.tcp_start("0.0.0.0:60000").await.map_err(|e| {
-            let message = format!("UDP start failed: {}", e);
+        let _ = wifi.tcp_start().await.map_err(|e| {
+            let message = format!("TCP start failed:\n{}", e);
             error!("{}", message)
         });
-        let _ = wifi.udp_start("0.0.0.0:60001").await.map_err(|e| {
-            let message = format!("UDP start failed: {}", e);
+        let _ = wifi.udp_start().await.map_err(|e| {
+            let message = format!("UDP start failed:\n{}", e);
             error!("{}", message)
         });
     });

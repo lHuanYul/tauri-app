@@ -44,6 +44,7 @@ const App = () => {
             break;
         default:
             content = <div>Page Not Found</div>;
+            localStorage.setItem("pageName", "uart_port_oc");
             break;
     }
 
