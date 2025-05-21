@@ -6,6 +6,7 @@ import PageSelectComp from './components/PageSelectComp';
 import ChartGenerateComp from './components/ChartGenerateComp';
 import MapGeneratorComp from './components/MapGeneratorComp';
 import MapDisplayComp from './components/MapDisplayComp';
+import WifiControlComp from './components/WifiControlComp';
 
 const App = () => {
     /*useEffect(() => {
@@ -32,6 +33,9 @@ const App = () => {
             break;
         case "uart_port_control":
             content = <UartControlComp />;
+            break;
+        case "wifi_control":
+            content = <WifiControlComp />;
             break;
         case "chart_generate":
             content = <ChartGenerateComp />;

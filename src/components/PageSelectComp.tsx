@@ -33,6 +33,12 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
         setPageName(name);
     };
 
+    const handleWFCClick = () => {
+        const name = "wifi_control";
+        localStorage.setItem("pageName", name);
+        setPageName(name);
+    };
+
     // handleCGeClick: 選擇 Chart Generate 頁面
     // Select the Chart Generate page
     const handleCGeClick = () => {
@@ -99,7 +105,18 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
                         : "page_select-button_list-defalt"
                 }
             >
-                Port Transmit
+                Port Control
+            </button>
+            <div className="border-b-2 border-gray-600"></div>
+            <button
+                onClick={handleWFCClick}
+                className={
+                    pageName === "wifi_control"
+                        ? "page_select-button_list-select"
+                        : "page_select-button_list-defalt"
+                }
+            >
+                Wifi Control
             </button>
             <div className="border-b-2 border-gray-600"></div>
             <button

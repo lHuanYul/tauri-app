@@ -1,6 +1,6 @@
 use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, net::UdpSocket as SyncUdpSocket};
 use log::{error, info, warn};
-use tauri::{App, Manager};
+use tauri::{App, AppHandle, Manager};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, runtime::Runtime, task::JoinHandle};
 use crate::{GlobalState, mods::box_error_mod::box_string_error};
 
@@ -190,4 +190,11 @@ pub fn setup(app: &mut App) {
             error!("{}", message)
         });
     });
+}
+
+#[tauri::command]
+pub async fn cmd_wifi_test(app: AppHandle) -> Result<String, String> {
+    let _ = udp_send_packet().await;
+    // let _ = tcp_send_packet().await;
+    Ok("Send finish".into())
 }
