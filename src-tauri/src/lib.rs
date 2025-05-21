@@ -19,9 +19,9 @@ use mods::{
     directory_mod, log_mod, loop_cmd_mod::{cmd_1kms_loop, cmd_50ms_loop,
     }, map_mod::{map_load,  map_save,
     }, matlab_mod::{self, run_engine_plot
-    },packet_mod, plotter_mod::{self, chart_generate
+    }, mcu_control_mod, packet_mod, plotter_mod::{self, chart_generate
     }, port_async_mod::{self, cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test
-    }, wifi_mod,
+    }, wifi_mod::{self, cmd_wifi_test}
 };
 
 /// Set const
@@ -42,6 +42,7 @@ pub struct GlobalState {
     pub matlab_engine:      SyncMutex <matlab_mod::MatlabEngine>,
     pub rand_datas:         AsyncMutex<plotter_mod::ChartRandDatas>,
     pub speed_datas:        AsyncMutex<plotter_mod::ChartSpeedDatas>,
+    pub store_datas:        AsyncMutex<mcu_control_mod::DataStore>,
     // pub u32_data_points:  AsyncMutex<ChartDataPoints>,
     // pub u8_data_points:  AsyncMutex<ChartDataPoints>,
 }
@@ -58,6 +59,7 @@ pub fn run() {
         matlab_engine:      SyncMutex ::new(matlab_mod::MatlabEngine::new()),
         rand_datas:         AsyncMutex::new(plotter_mod::ChartRandDatas::new_rand("temp", "disp", 100)),
         speed_datas:        AsyncMutex::new(plotter_mod::ChartSpeedDatas::new("speed", "Speed", 100)),
+        store_datas:        AsyncMutex::new(mcu_control_mod::DataStore::new()),
     };
     
     tauri::Builder::default()
@@ -72,6 +74,7 @@ pub fn run() {
             cmd_open_port_async,
             cmd_close_port_async,
             cmd_serial_test,
+            cmd_wifi_test,
             map_load,
             map_save,
             chart_generate,

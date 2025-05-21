@@ -173,7 +173,8 @@ impl ChartRandDatas {
 pub struct ChartSpeedDatas {
     file_path: PathBuf,
     display_name: String,
-    data_points_1: Vec<u32>,
+    data_points_1: Vec<f32>,
+    data_points_2: Vec<f32>,
     max_length: usize,
 }
 impl ChartSpeedDatas {
@@ -185,15 +186,22 @@ impl ChartSpeedDatas {
             file_path,
             display_name: display_name.to_owned(),
             data_points_1: Vec::new(),
+            data_points_2: Vec::new(),
             max_length,
         }
     }
 
     /// 推入一個新值，並移除超額的最舊值
-    pub fn push(&mut self, value: u32) {
+    pub fn push_data_points_1(&mut self, value: f32) {
         self.data_points_1.push(value);
         if self.data_points_1.len() > self.max_length {
             self.data_points_1.remove(0);
+        }
+    }
+    pub fn push_data_points_2(&mut self, value: f32) {
+        self.data_points_2.push(value);
+        if self.data_points_2.len() > self.max_length {
+            self.data_points_2.remove(0);
         }
     }
     
@@ -203,7 +211,7 @@ impl ChartSpeedDatas {
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 
-    pub fn line_chart_generate(&self) -> Result<(), String> {
+    /*pub fn line_chart_generate(&self) -> Result<(), String> {
         let (root_size_x, root_size_y) = (2160, 1215);
         // 1. 建立繪圖區並填背景
         let root = BitMapBackend::new(&self.file_path, (root_size_x, root_size_y))
@@ -221,10 +229,10 @@ impl ChartSpeedDatas {
 
         // 4. 計算座標範圍
         let (data_min_x, data_max_x) =
-            (0 as i32, self.max_length as i32);
-        let data_all_vals = self.data_points_1.iter().cloned();
+            (0 as f32, self.max_length as f32);
+        let data_all_vals = self.data_points_1.iter().chain(self.data_points_2.iter()).cloned();
         let (data_min_y, data_max_y) =
-            (data_all_vals.clone().min().unwrap_or(0) - 1, data_all_vals.max().unwrap_or(0) + 1);
+            (data_all_vals.clone().min().unwrap_or(0.0) - 1.0, data_all_vals.max().unwrap_or(0.0) + 1.0);
 
         // 5. 建立 ChartContext
         let mut chart = ChartBuilder::on(&data_area)
@@ -262,7 +270,36 @@ impl ChartSpeedDatas {
             let (legend_x, legend_y) = (120, 0);
             let legend_name = "Series 1";
             let (legend_name_x, legend_name_y) = (legend_x - 10, legend_y + legend_font_dist);
-            let points: Vec<(i32, u32)> = self.data_points_1.iter()
+            let points: Vec<(i32, f32)> = self.data_points_1.iter()
+                .enumerate().map(|(i, &v)| (i as i32, v)).collect();
+
+            chart.draw_series(LineSeries::new(points.clone(), data_style))
+                .map_err(|e| e.to_string())?;
+            chart.draw_series(
+                points.iter().map(|&p| Circle::new(p, data_dot_size, color.filled()))
+            ).map_err(|e| e.to_string())?;
+
+            legend_area.draw(&PathElement::new(
+                    vec![(legend_x, legend_y), (legend_x + legend_line_len, legend_y)],
+                    legend_style,
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw(&Circle::new(
+                    (legend_x + legend_line_len / 2, legend_y),
+                    legend_dot_size, color.filled()
+                ))
+                .map_err(|e| e.to_string())?;
+            legend_area.draw_text(legend_name, &legend_text_style, (legend_name_x, legend_name_y))
+                .map_err(|e| e.to_string())?;
+        }
+        {
+            let color = RED;
+            let data_style = color.stroke_width(3);
+            let legend_style = color.stroke_width(2);
+            let (legend_x, legend_y) = (120, 0);
+            let legend_name = "Series 1";
+            let (legend_name_x, legend_name_y) = (legend_x - 10, legend_y + legend_font_dist);
+            let points: Vec<(i32, f32)> = self.data_points_1.iter()
                 .enumerate().map(|(i, &v)| (i as i32, v)).collect();
 
             chart.draw_series(LineSeries::new(points.clone(), data_style))
@@ -285,6 +322,34 @@ impl ChartSpeedDatas {
                 .map_err(|e| e.to_string())?;
         }
         root.present().map_err(|e| e.to_string())
+    }*/
+}
+
+pub struct ChartADCDatas {
+    file_path: PathBuf,
+    display_name: String,
+    data_points_1: Vec<i16>,
+    max_length: usize,
+}
+impl ChartADCDatas {
+    /// 建立新的 ChartDataPoints
+    pub fn new(name: &str, display_name: &str, max_length: usize) -> Self {
+        let file_path = directory_mod::create_file(store_folder(), &format!("{name}.png"))
+            .map_err(|e| error!("{}", e)).unwrap();
+        Self {
+            file_path,
+            display_name: display_name.to_owned(),
+            data_points_1: Vec::new(),
+            max_length,
+        }
+    }
+
+    /// 推入一個新值，並移除超額的最舊值
+    pub fn push_data_points_1(&mut self, value: i16) {
+        self.data_points_1.push(value);
+        if self.data_points_1.len() > self.max_length {
+            self.data_points_1.remove(0);
+        }
     }
 }
 

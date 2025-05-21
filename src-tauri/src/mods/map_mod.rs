@@ -36,14 +36,6 @@ struct MapItem {
     connect:    Vec<MapConnect>,
 }
 
-/// 結構：VehiclePos，未使用  
-/// Struct: VehiclePos (unused)
-struct VehiclePos {
-    from:   PosType,
-    to:     PosType,
-    on:     bool,
-}
-
 /// 輸入連接結構：InConnect，用於反序列化 JSON  
 /// Input struct: InConnect for JSON deserialization
 #[derive(Deserialize)]

@@ -5,7 +5,7 @@ use serialport::{available_ports, SerialPortInfo};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf}, sync::{watch::{channel, Receiver, Sender}, Mutex}, time::{sleep, timeout}};
 use crate::{mods::packet_mod::{UartPacket, PACKET_END_CODE, PACKET_MAX_SIZE}, GlobalState};
-use super::{log_mod::CODE_TRACE, mcu_control_mod::{self, Movement}};
+use super::{log_mod::CODE_TRACE, mcu_control_mod::{self}};
 
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
@@ -266,7 +266,7 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
 /// Tauri command: test packet write and read
 #[tauri::command]
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
-    mcu_control_mod::send_cmd(app, Movement::FORWARD.payload).await.map_err(|e| {
+    mcu_control_mod::send_cmd(app, mcu_control_mod::RIGHT_SPEED_ONCE.payload).await.map_err(|e| {
         let message = format!("Send failed: {}", e);
         error!("{}", message);
         message

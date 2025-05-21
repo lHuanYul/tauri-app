@@ -193,7 +193,7 @@ pub fn setup(app: &mut App) {
 }
 
 #[tauri::command]
-pub async fn cmd_wifi_test(app: AppHandle) -> Result<String, String> {
+pub async fn cmd_wifi_test(_app: AppHandle) -> Result<String, String> {
     let _ = udp_send_packet().await;
     // let _ = tcp_send_packet().await;
     Ok("Send finish".into())
