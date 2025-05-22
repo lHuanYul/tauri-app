@@ -1,5 +1,5 @@
 use std::{sync::Arc, time::Duration};
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use tauri::{AppHandle, Manager};
 use serialport::{available_ports, SerialPortInfo};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
@@ -177,13 +177,14 @@ impl PortAsyncManagerInner {
                     continue;
                 }
                 let packet = result.unwrap();
-                info!("Port read succeed:\n{}", packet.show());
-                let _ = {
-                    let state = read_handle.state::<GlobalState>();
-                    let mut receive_buffer = state.receive_buffer.lock().await;
-                    receive_buffer.push(packet).map_err(|e| {
+                debug!("Port read succeed:\n{}", packet.show());
+                {
+                    let global_state = read_handle.state::<GlobalState>();
+                    let mut receive_buffer = global_state.receive_buffer.lock().await;
+                    let _ = receive_buffer.push(packet).map_err(|e| {
                         error!("Packet store failed: {}", e);
-                    })
+                    });
+                    receive_buffer.show(5);
                 };
             }
         });
@@ -195,8 +196,8 @@ impl PortAsyncManagerInner {
             loop {
                 if *shutdown_write.borrow() { break; }
                 let maybe_pkt = {
-                    let global = write_handle.state::<GlobalState>();
-                    let mut transfer_buffer = global.transfer_buffer.lock().await;
+                    let global_state = write_handle.state::<GlobalState>();
+                    let mut transfer_buffer = global_state.transfer_buffer.lock().await;
                     transfer_buffer.pop_front()
                 };
                 if maybe_pkt.is_none() {
@@ -207,7 +208,7 @@ impl PortAsyncManagerInner {
                 let _ = arc_write.write_packet(packet.clone()).await.map_err(|e| {
                     error!("Port write failed: {}", e);
                 });
-                info!("Port write succeed:\n{}", packet.show());
+                debug!("Port write succeed:\n{}", packet.show());
             }
         });
     }

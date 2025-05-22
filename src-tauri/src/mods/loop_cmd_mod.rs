@@ -1,15 +1,15 @@
-use log::trace;
-use tauri::{AppHandle, Manager};
-use crate::{mods::mcu_control_mod, GlobalState};
+use std::time::Duration;
+use tauri::AppHandle;
+use tokio::time::interval;
+use crate::mods::mcu_control_mod;
 
-#[tauri::command]
-pub async fn cmd_1kms_loop(app: AppHandle) {
-    trace!("1kms loop running");
-    let _global_state = app.state::<GlobalState>();
-}
-
-#[tauri::command]
-pub async fn cmd_50ms_loop(app: AppHandle) {
-    trace!("50ms loop running");
-    mcu_control_mod::re_pkt_proccess(app).await;
+pub fn init_timer(app: AppHandle) {
+    let app_10ms = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut ticker = interval(Duration::from_millis(10));
+        loop {
+            mcu_control_mod::re_pkt_proccess(app_10ms.clone()).await;
+            ticker.tick().await;
+        }
+    });
 }

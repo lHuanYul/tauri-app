@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useState } from 'react';
 import UartPortOCComp from './components/UartPortOCComp';
 import UartControlComp from './components/UartControlComp';
 import PageSelectComp from './components/PageSelectComp';
@@ -16,15 +15,6 @@ const App = () => {
     const [pageName, setPageName] = useState(
         () => localStorage.getItem("pageName") || "uart_port_oc"
     );
-
-    useEffect(() => {
-        const interval = setInterval(async () => { await invoke('cmd_1kms_loop'); }, 1000); // ms
-        return () => clearInterval(interval);
-    }, []);
-    useEffect(() => {
-        const interval = setInterval(async () => { await invoke('cmd_50ms_loop'); }, 50);
-        return () => clearInterval(interval);
-    }, []);
 
     let content;
     switch (pageName) {

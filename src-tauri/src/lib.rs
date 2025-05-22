@@ -1,7 +1,11 @@
 use tauri::{AppHandle, Manager};
 use std::{path::PathBuf, sync::Mutex as SyncMutex};
 use tokio::sync::Mutex as AsyncMutex;
-use log::LevelFilter;
+use log::{info, LevelFilter};
+use mods::{
+    directory_mod, log_mod, loop_cmd_mod, map_mod::{self}, matlab_mod::{self}, mcu_control_mod, packet_mod, plotter_mod::{self}, uart_async_mod::{self}, wifi_mod::{self}
+};
+
 pub mod mods {
     pub mod plotter_mod;
     pub mod loop_cmd_mod;
@@ -10,19 +14,11 @@ pub mod mods {
     pub mod map_mod;
     pub mod matlab_mod;
     pub mod packet_mod;
-    pub mod port_async_mod;
+    pub mod uart_async_mod;
     pub mod mcu_control_mod;
     pub mod wifi_mod;
     pub mod box_error_mod;
 }
-use mods::{
-    directory_mod, log_mod, loop_cmd_mod::{cmd_1kms_loop, cmd_50ms_loop,
-    }, map_mod::{map_load,  map_save,
-    }, matlab_mod::{self, run_engine_plot
-    }, mcu_control_mod, packet_mod, plotter_mod::{self, chart_generate
-    }, port_async_mod::{self, cmd_available_port_async, cmd_check_port_open_async, cmd_close_port_async, cmd_open_port_async, cmd_serial_test
-    }, wifi_mod::{self, cmd_wifi_test}
-};
 
 /// Set const
 /// ```
@@ -35,7 +31,7 @@ pub const MATLAB_LIBENG_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win
 
 pub struct GlobalState {
     pub root_path:          SyncMutex <PathBuf>,
-    pub main_port:          AsyncMutex<port_async_mod::PortAsyncManager>,
+    pub main_port:          AsyncMutex<uart_async_mod::PortAsyncManager>,
     pub wifi_tr_re:         AsyncMutex<wifi_mod::WifiReceive>,
     pub transfer_buffer:    AsyncMutex<packet_mod::TrReBuffer>,
     pub receive_buffer:     AsyncMutex<packet_mod::TrReBuffer>,
@@ -52,7 +48,7 @@ pub fn run() {
     log_mod::init();
     let global_state = GlobalState {
         root_path:          SyncMutex ::new(PathBuf::new()),
-        main_port:          AsyncMutex::new(port_async_mod::PortAsyncManager::new()),
+        main_port:          AsyncMutex::new(uart_async_mod::PortAsyncManager::new()),
         wifi_tr_re:         AsyncMutex::new(wifi_mod::WifiReceive::new()),
         transfer_buffer:    AsyncMutex::new(packet_mod::TrReBuffer::new(5)),
         receive_buffer:     AsyncMutex::new(packet_mod::TrReBuffer::new(5)),
@@ -67,21 +63,20 @@ pub fn run() {
         .manage(global_state)
         .invoke_handler(tauri::generate_handler![
             mytest,
-            cmd_1kms_loop,
-            cmd_50ms_loop,
-            cmd_available_port_async,
-            cmd_check_port_open_async,
-            cmd_open_port_async,
-            cmd_close_port_async,
-            cmd_serial_test,
-            cmd_wifi_test,
-            map_load,
-            map_save,
-            chart_generate,
+            uart_async_mod::cmd_available_port_async,
+            uart_async_mod::cmd_check_port_open_async,
+            uart_async_mod::cmd_open_port_async,
+            uart_async_mod::cmd_close_port_async,
+            uart_async_mod::cmd_serial_test,
+            wifi_mod::cmd_wifi_test,
+            map_mod::map_load,
+            map_mod::map_save,
+            plotter_mod::chart_generate,
         ])
         .setup(|app| {
             directory_mod::setup(app);
             wifi_mod::setup(app);
+            loop_cmd_mod::init_timer(app.handle().clone());
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -89,9 +84,14 @@ pub fn run() {
 }
 
 #[tauri::command]
-fn mytest(app: AppHandle) -> Result<String, String> {
+async fn mytest(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
-    let mut state = global_state.matlab_engine.lock().unwrap();
-    let _path = run_engine_plot(&mut *state, 10.0, 20.0)?;
+    // let mut state = global_state.matlab_engine.lock().unwrap();
+    // let _path = matlab_mod::run_engine_plot(&mut *state, 10.0, 20.0)?;
+    let mut store_datas = global_state.store_datas.lock().await;
+    let data = store_datas.show_f32(mcu_control_mod::DataStoreSelF32::RightSpeed);
+    info!("RightSpeed: {:?}", data);
+    let data = store_datas.show_u16(mcu_control_mod::DataStoreSelU16::RightAdc);
+    info!("RightAdc: {:?}", data);
     Ok("OK".to_string())
 }

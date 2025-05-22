@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import DarkModeComp from './DarkModeComp';
 
 // PageSelectProps: 頁面選擇組件的屬性定義
@@ -15,6 +16,7 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
     // handleASBClick: 處理側邊欄按鈕點擊事件（未實作）
     // Handle click for the sidebar button (not implemented)
     const handleASBClick = async () => {
+        await invoke("mytest");
     };
 
     // handlePOCClick: 選擇 Port O/C 頁面
@@ -61,7 +63,6 @@ const PageSelectComp = ({ pageName, setPageName }: PageSelectProps) => {
         const name = "test";
         localStorage.setItem("pageName", name);
         setPageName(name);
-        // await invoke("mytest");
     };
 
     return (
