@@ -58,7 +58,9 @@ struct InItem {
 #[tauri::command]
 pub fn map_load() -> Result<String, String> {
     // 建立檔案（存在則不覆寫），並讀取內容 / Create or reuse file, then read its content
-    let json_path = create_file(STORE_FOLDER, "map_info.json")?;
+    let json_path = create_file(STORE_FOLDER, "map_info.json").map_err(|e| {
+        error!("{}", e);
+    }).unwrap();
     let result = fs::read_to_string(&json_path)
         .map_err(|e| {
             let message = format!("Read JSON failed: {}", e);
@@ -90,9 +92,15 @@ pub fn map_save(
 
     // 準備輸出檔案路徑與緩衝
     // Prepare file paths and buffers
-    let c_path = create_file(STORE_FOLDER, "map_info.c")?;
-    let h_path = create_file(STORE_FOLDER, "map_base.h")?;
-    let json_path = create_file(STORE_FOLDER, "map_info.json")?;
+    let c_path = create_file(STORE_FOLDER, "map_info.c").map_err(|e| {
+        error!("{}", e);
+    }).unwrap();
+    let h_path = create_file(STORE_FOLDER, "map_base.h").map_err(|e| {
+        error!("{}", e);
+    }).unwrap();
+    let json_path = create_file(STORE_FOLDER, "map_info.json").map_err(|e| {
+        error!("{}", e);
+    }).unwrap();
     let mut c_code = String::new();
     let mut json_items: Vec<MapItem> = Vec::with_capacity(items.len());
 

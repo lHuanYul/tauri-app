@@ -1,4 +1,4 @@
-use log::info;
+use log::{debug, info};
 
 /// 定義 UART 封包的起始、結尾符號及資料長度常數<br>
 /// Define constants for UART packet start code, end code, and data length
@@ -166,19 +166,12 @@ impl TrReBuffer {
     
     /// 顯示前 n 個封包，不會從緩衝區移除
     pub fn show(&self, n: usize) {
-        // 實際要顯示的數量：取 self.packets.len() 和 n 的最小值
         let count = self.packets.len().min(n);
-
+        if n > count {
+            debug!("Ask for show {}, but only have {}", n, self.packets.len());
+        }
         for (idx, pkt) in self.packets.iter().take(count).enumerate() {
             info!("TrReBuffer show[{}]:\n{}", idx, pkt.show());
-        }
-
-        // 如果 n 超過目前封包數，也可以選擇再 warn 一下
-        if n > count {
-            info!(
-                "要求顯示 {} 個，但目前只有 {} 個封包",
-                n, self.packets.len()
-            );
         }
     }
 }

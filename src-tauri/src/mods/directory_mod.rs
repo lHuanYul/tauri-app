@@ -1,4 +1,4 @@
-use std::{env, fs::{self, File}, path::{Path, PathBuf}};
+use std::{env, error::Error, fs::{self, File}, path::{Path, PathBuf}};
 use log::{debug, info, warn};
 use tauri::{App, Manager};
 use crate::GlobalState;
@@ -27,7 +27,6 @@ pub fn get_working_directory() -> Result<PathBuf, String> {
     let working_directory = env::current_dir().map_err(|e| {
         format!("Get working directory failed: {}", e)
     })?;
-    // 轉成字串格式並記錄偵錯日誌 / Convert to string and debug log
     let working_directory_str = path_to_string(&working_directory).unwrap_or_else(|e| e);
     debug!("Current working directory: {working_directory_str:?}");
     Ok(working_directory)
@@ -48,23 +47,13 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, String> {
     }
 }
 
-/// 在指定資料夾路徑下建立所有子資料夾 <br>
-/// Create all directories for the given folder path
-pub fn create_folder<P: AsRef<Path>>(folder_path: P) -> Result<PathBuf, String> {
-    let path = Path::new(folder_path.as_ref());
-    fs::create_dir_all(&path).map_err(|e| format!("Fail to create folder '{path:?}': {}", e))?;
-
-    debug!("Created folder: {:?}", path);
-    Ok(path.to_path_buf())
-}
-
 /// 在指定資料夾下建立檔案，已存在則不覆寫 <br>
 /// Create a file in the specified folder, no overwrite if exists
-pub fn create_file<P: AsRef<Path>>(folder_path: P, file_name: &str) -> Result<PathBuf, String> {
-    // 確保資料夾存在 / Ensure folder exists
-    let path = create_folder(folder_path)?;
+pub fn create_file<P: AsRef<Path>>(folder_path: P, file_name: &str) -> Result<PathBuf, Box<dyn Error>> {
+    let folder = folder_path.as_ref().to_path_buf();
+    fs::create_dir_all(&folder)?;
+    let file_path = folder.join(format!("{file_name}"));
 
-    let file_path = path.join(format!("{file_name}"));
     // 檢查檔案是否已存在 / Check if file exists
     if file_path.exists() && file_path.is_file() {
         let message = format!("File already exists: {file_path:?}");

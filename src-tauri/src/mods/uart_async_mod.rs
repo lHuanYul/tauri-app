@@ -184,7 +184,7 @@ impl PortAsyncManagerInner {
                     let _ = receive_buffer.push(packet).map_err(|e| {
                         error!("Packet store failed: {}", e);
                     });
-                    receive_buffer.show(5);
+                    // receive_buffer.show(5);
                 };
             }
         });
@@ -267,7 +267,7 @@ pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
 /// Tauri command: test packet write and read
 #[tauri::command]
 pub async fn cmd_serial_test(app: AppHandle) -> Result<String, String> {
-    mcu_control_mod::send_cmd(app, mcu_control_mod::RIGHT_SPEED_ONCE.payload).await.map_err(|e| {
+    mcu_control_mod::send_cmd(app).await.map_err(|e| {
         let message = format!("Send failed: {}", e);
         error!("{}", message);
         message

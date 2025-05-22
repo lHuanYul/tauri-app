@@ -1,9 +1,9 @@
 use tauri::{AppHandle, Manager};
 use std::{path::PathBuf, sync::Mutex as SyncMutex};
-use tokio::sync::Mutex as AsyncMutex;
-use log::{info, LevelFilter};
+use tokio::sync::{Mutex as AsyncMutex};
+use log::{error, info, LevelFilter};
 use mods::{
-    directory_mod, log_mod, loop_cmd_mod, map_mod::{self}, matlab_mod::{self}, mcu_control_mod, packet_mod, plotter_mod::{self}, uart_async_mod::{self}, wifi_mod::{self}
+    directory_mod, log_mod, loop_cmd_mod, map_mod, matlab_mod::{self}, mcu_cmd_mod, mcu_control_mod, packet_mod, plotter_mod::{self}, uart_async_mod::{self}, wifi_mod::{self}
 };
 
 pub mod mods {
@@ -16,6 +16,7 @@ pub mod mods {
     pub mod packet_mod;
     pub mod uart_async_mod;
     pub mod mcu_control_mod;
+    pub mod mcu_cmd_mod;
     pub mod wifi_mod;
     pub mod box_error_mod;
 }
@@ -84,7 +85,7 @@ pub fn run() {
 }
 
 #[tauri::command]
-async fn mytest(app: AppHandle) -> Result<String, String> {
+async fn mytest(app: AppHandle) -> Result<(), String> {
     let global_state = app.state::<GlobalState>();
     // let mut state = global_state.matlab_engine.lock().unwrap();
     // let _path = matlab_mod::run_engine_plot(&mut *state, 10.0, 20.0)?;
@@ -93,5 +94,9 @@ async fn mytest(app: AppHandle) -> Result<String, String> {
     info!("RightSpeed: {:?}", data);
     let data = store_datas.show_u16(mcu_control_mod::DataStoreSelU16::RightAdc);
     info!("RightAdc: {:?}", data);
-    Ok("OK".to_string())
+    let _ = mcu_control_mod::gen_h_file(app.clone()).map_err(|e| {
+        error!("{}", e);
+    });
+    info!("Ok");
+    Ok(())
 }

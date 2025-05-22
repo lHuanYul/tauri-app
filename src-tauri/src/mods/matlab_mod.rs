@@ -175,7 +175,9 @@ pub fn run_engine_plot(
     b: f64,
 ) -> Result<String, String> {
     //let file_name = format!("chart_{}.png", chrono::Local::now().format("%Y%m%d%H%M%S"));
-    let file_path = create_file(CHARTS_FOLDER_PATH, &format!("matlab.png"))?;
+    let file_path = create_file(CHARTS_FOLDER_PATH, &format!("matlab.png")).map_err(|e| {
+        error!("{}", e);
+    }).unwrap();
     let file_path_str= path_to_string(file_path)?;
 
     info!("在 MATLAB 裡處理參數 a={}, b={}", a, b);
