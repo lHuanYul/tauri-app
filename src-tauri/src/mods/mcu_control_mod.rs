@@ -1,8 +1,81 @@
-use log::error;
+use log::{debug, info};
 use tauri::{AppHandle, Manager};
-use crate::{mods::{directory_mod, packet_mod::UartPacket, mcu_cmd_mod}, GlobalState};
-use std::{error::Error, fs};
-use regex::Regex;
+use crate::{mods::{packet_mod::UartPacket, mcu_const}, GlobalState};
+
+/// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
+/// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
+#[derive(Debug)]
+pub struct TrReBuffer {
+    packets: Vec<UartPacket>,  // 真正的槽位 / storage for packets
+    max_length: usize,         // 最大槽位數 / maximum number of slots
+}
+impl TrReBuffer {
+    /// 建立 Transfer Buffer，並指定最大容量<br>
+    /// Creates a new TrReBuffer with a specified maximum capacity
+    pub fn new(max_length: usize) -> Self {
+        Self {
+            packets:    Vec::new(),
+            max_length,
+        }
+    }
+
+    /// 取得目前已儲存封包數<br>
+    /// Returns the current number of stored packets
+    pub fn get_length(&self) -> usize {
+        self.packets.len()
+    }
+
+    /// 檢查緩衝區是否已滿<br>
+    /// Returns true if the buffer has reached its maximum capacity
+    pub fn is_full(&self) -> bool {
+        self.packets.len() >= self.max_length
+    }
+
+    /// 檢查緩衝區是否為空<br>
+    /// Returns true if the buffer contains no packets
+    pub fn is_empty(&self) -> bool {
+        self.packets.is_empty()
+    }
+
+    /// 將封包推入尾端；若容量已滿則回傳 Err <br>
+    /// Pushes a packet to the end; returns Err if the buffer is full
+    pub fn push(&mut self, packet: UartPacket) -> Result<(), String> {
+        if self.is_full() {
+            let _msg = format!("Buffer is full (max: {})", self.max_length);
+            return Err(_msg);
+        }
+        self.packets.push(packet);
+        Ok(())
+    }
+
+    /// 從前端彈出並回傳封包；若為空則回傳 None <br>
+    /// Removes and returns the packet at the front; returns None if empty
+    pub fn pop_front(&mut self) -> Option<UartPacket> {
+        if self.packets.is_empty() {
+            None
+        } else {
+            Some(self.packets.remove(0))
+        }
+    }
+
+    /// 取出所有封包並清空緩衝區<br>
+    /// Takes all packets and clears the buffer
+    pub fn take_all(&mut self) -> Vec<UartPacket> {
+        std::mem::take(&mut self.packets)
+    }
+
+    
+    /// 顯示前 n 個封包，不會從緩衝區移除
+    pub fn show(&self, n: usize) {
+        let count = self.packets.len().min(n);
+        if n > count {
+            debug!("Ask for show {}, but only have {}", n, self.packets.len());
+        }
+        for (idx, pkt) in self.packets.iter().take(count).enumerate() {
+            info!("TrReBuffer show[{}]:\n{}", idx, pkt.show());
+        }
+    }
+}
 
 pub struct DataStore {
     left_speed: Vec<f32>,
@@ -63,136 +136,42 @@ impl DataStore {
     }
 }
 
-const STORE_FOLDER: &str = "generate/base";
-
-pub fn gen_h_file(app: AppHandle) -> Result<(), Box<dyn Error>> {
+#[tauri::command]
+pub async fn cmd_send_spd_stop(app: AppHandle) -> Result<(), String> {
     let global_state = app.state::<GlobalState>();
-    let root_path= {
-        let root_path = global_state.root_path.lock().unwrap();
-        root_path.clone()
-    };
-    let src_path = root_path.join("src/mods/mcu_cmd_mod.rs");
-    let src = fs::read_to_string(&src_path)?;
-    let out_h = 
-        directory_mod::create_file(root_path.join(STORE_FOLDER), "mcu_cmd.h")?;
-    
-    let mut contents = format!("#ifndef MCU_CMD_H\n#define MCU_CMD_H\n\n");
-    contents = format!("{}#include <stdint.h>\n\n", contents);
-    
-    // 4. 用正則擷取 define_cmd! 宏
-    let pub_const = Regex::new(
-        r#"pub\s+const\s+(?P<name>\w+)\s*:\s*[^=]+=\s*(?P<bytes>0x[0-9A-Fa-f]+|\d+)\s*;"#
-    ).unwrap();
-    for caps in pub_const.captures_iter(&src) {
-        contents = format!("{}#define {} {}\n", contents, &caps["name"], &caps["bytes"]);
-    }
-    contents = format!("{}\n", contents);
-
-    let define_cmd = Regex::new(
-        r#"define_cmd!\(\s*(?P<const_name>\w+)\s*,\s*"(?P<name>[^"]+)"\s*,\s*\[(?P<bytes>[^\]]+)\]\s*\)\s*;"#
-    ).unwrap();
-    for caps in define_cmd.captures_iter(&src) {
-        contents = format!("{}#define {} ((uint8_t[]){{{}}})\n", contents, &caps["name"], &caps["bytes"]);
-    }
-
-    contents = format!("{}\n#endif\n", contents);
-
-    fs::write(&out_h, contents)?;
+    let mut cmd = Vec::<u8>::new();
+    cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
+    cmd.extend(mcu_const::CMD_RIGHT_SPEED_STOP.payload.to_vec());
+    cmd.extend(mcu_const::CMD_RIGHT_ADC_STOP.payload.to_vec());
+    let mut transfer_buffer = global_state.transfer_buffer.lock().await;
+    let packet = UartPacket::new(cmd)?;
+    transfer_buffer.push(packet)?;
     Ok(())
 }
 
-pub async fn send_cmd(app: AppHandle) -> Result<(), String> {
+#[tauri::command]
+pub async fn cmd_send_spd_once(app: AppHandle) -> Result<(), String> {
     let global_state = app.state::<GlobalState>();
     let mut cmd = Vec::<u8>::new();
-    cmd.push(mcu_cmd_mod::CMD_CODE_DATA_TRRE);
-    cmd.extend(mcu_cmd_mod::RIGHT_SPEED_START.payload.to_vec());
+    cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
+    cmd.extend(mcu_const::CMD_RIGHT_SPEED_ONCE.payload.to_vec());
+    cmd.extend(mcu_const::CMD_RIGHT_ADC_ONCE.payload.to_vec());
     let mut transfer_buffer = global_state.transfer_buffer.lock().await;
     let packet = UartPacket::new(cmd)?;
-    transfer_buffer.push(packet)
+    transfer_buffer.push(packet)?;
+    Ok(())
 }
 
-pub async fn re_pkt_proccess(app: AppHandle) {
+#[tauri::command]
+pub async fn cmd_send_spd_start(app: AppHandle) -> Result<(), String> {
     let global_state = app.state::<GlobalState>();
-    for _ in 0..10 {
-        let maybe_pkt = {
-            let mut receive_buffer = global_state.receive_buffer.lock().await;
-            receive_buffer.pop_front()
-        };
-        let mut data = match maybe_pkt {
-            None => break,
-            Some(p) => p.data(),
-        };
-        match data.remove(0) {
-            cmd if cmd == mcu_cmd_mod::CMD_CODE_DATA_TRRE => re_pkt_data_store(app.clone(), data).await,
-            cmd if cmd == mcu_cmd_mod::CMD_CODE_VECH_CONTROL => break,
-            _ => break,
-        };
-    }
+    let mut cmd = Vec::<u8>::new();
+    cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
+    cmd.extend(mcu_const::CMD_RIGHT_SPEED_START.payload.to_vec());
+    cmd.extend(mcu_const::CMD_RIGHT_ADC_START.payload.to_vec());
+    let mut transfer_buffer = global_state.transfer_buffer.lock().await;
+    let packet = UartPacket::new(cmd)?;
+    transfer_buffer.push(packet)?;
+    Ok(())
 }
 
-async fn re_pkt_data_store(app: AppHandle, mut data: Vec<u8>) {
-    let global_state = app.state::<GlobalState>();
-    loop {
-        if        data.starts_with(mcu_cmd_mod::LEFT_SPEED_STORE.payload) {
-            data.drain(..mcu_cmd_mod::LEFT_SPEED_STORE.payload.len());
-            let value = match data[..size_of::<f32>()].try_into() {
-                Ok(bytes) => {
-                    data.drain(..size_of::<f32>());
-                    f32::from_bits(u32::from_be_bytes(bytes))
-                },
-                Err(e) => {
-                    error!("ERR: {}", e);
-                    break;
-                }
-            };
-            let mut store_datas = global_state.store_datas.lock().await;
-            store_datas.push_f32(DataStoreSelF32::LeftSpeed, value);
-        }
-        else if data.starts_with(mcu_cmd_mod::RIGHT_SPEED_STORE.payload) {
-            data.drain(..mcu_cmd_mod::RIGHT_SPEED_STORE.payload.len());
-            let value = match data[..size_of::<f32>()].try_into() {
-                Ok(bytes) => {
-                    data.drain(..size_of::<f32>());
-                    f32::from_bits(u32::from_be_bytes(bytes))
-                },
-                Err(e) => {
-                    error!("ERR: {}", e);
-                    break;
-                }
-            };
-            let mut store_datas = global_state.store_datas.lock().await;
-            store_datas.push_f32(DataStoreSelF32::RightSpeed, value);
-        }
-        else if data.starts_with(mcu_cmd_mod::LEFT_ADC_STORE.payload) {
-            data.drain(..mcu_cmd_mod::LEFT_ADC_STORE.payload.len());
-            let value = match data[..size_of::<u16>()].try_into() {
-                Ok(bytes) => {
-                    data.drain(..size_of::<u16>());
-                    u16::from_be_bytes(bytes)
-                },
-                Err(e) => {
-                    error!("ERR: {}", e);
-                    break;
-                }
-            };
-            let mut store_datas = global_state.store_datas.lock().await;
-            store_datas.push_i16(DataStoreSelU16::LeftAdc, value);
-        }
-        else if data.starts_with(mcu_cmd_mod::RIGHT_ADC_STORE.payload) {
-            data.drain(..mcu_cmd_mod::RIGHT_ADC_STORE.payload.len());
-            let value = match data[..size_of::<u16>()].try_into() {
-                Ok(bytes) => {
-                    data.drain(..size_of::<u16>());
-                    u16::from_be_bytes(bytes)
-                },
-                Err(e) => {
-                    error!("ERR: {}", e);
-                    break;
-                }
-            };
-            let mut store_datas = global_state.store_datas.lock().await;
-            store_datas.push_i16(DataStoreSelU16::RightAdc, value);
-        }
-        else { break; }
-    }
-}

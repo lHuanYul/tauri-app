@@ -5,9 +5,25 @@ const UartControlComp = () => {
     const [response, setResponse] = useState(() => sessionStorage.getItem("TRResponse") || "");
     useEffect(() => { sessionStorage.setItem("TRResponse", response); }, [response]);
 
-    const serial_c = async () => {
+    const cmd_stop = async () => {
         try {
-            const result = await invoke("cmd_serial_test");
+            const result = await invoke("cmd_send_spd_stop");
+            setResponse(result as string);
+        } catch (error: any) {
+            setResponse(`錯誤：${error}`);
+        }
+    };
+    const cmd_once = async () => {
+        try {
+            const result = await invoke("cmd_send_spd_once");
+            setResponse(result as string);
+        } catch (error: any) {
+            setResponse(`錯誤：${error}`);
+        }
+    };
+    const cmd_start = async () => {
+        try {
+            const result = await invoke("cmd_send_spd_start");
             setResponse(result as string);
         } catch (error: any) {
             setResponse(`錯誤：${error}`);
@@ -21,8 +37,16 @@ const UartControlComp = () => {
         >
             <button
                 className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-4 rounded"
-                onClick={serial_c}
-            > Transmit </button>
+                onClick={cmd_stop}
+            > cmd_stop </button>
+            <button
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-4 rounded"
+                onClick={cmd_once}
+            > cmd_once </button>
+            <button
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-4 rounded"
+                onClick={cmd_start}
+            > cmd_start </button>
             <div>
                 <pre className="min-h-[8em]">
                     {response || ""}
