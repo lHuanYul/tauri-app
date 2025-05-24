@@ -1,34 +1,33 @@
-use std::{error, sync::{atomic::{AtomicBool, Ordering}, Arc}, net::UdpSocket as SyncUdpSocket};
+use std::{error::Error, sync::{atomic::{AtomicBool, Ordering}, Arc}, net::UdpSocket as SyncUdpSocket};
 use log::{error, info, warn};
 use tauri::{App, AppHandle, Manager};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, UdpSocket}, runtime::Runtime, task::JoinHandle};
-use crate::{GlobalState, mods::box_error_mod::box_string_error};
+use crate::{GlobalState, mods::box_error_mod};
 
 // TCP 發送函式：connect → write_all → close
-pub async fn tcp_send_packet() -> Result<(), Box<dyn error::Error>> {
+pub async fn tcp_send_packet() -> Result<(), Box<dyn Error>> {
     let addr = "192.168.0.20:60000";
-    let data = b"Hello from Rust by TCP";
+    let datas = b"Hello from Rust by TCP".to_vec();
     // 1. 建立 TCP 連線（三次握手）
     let mut stream = TcpStream::connect(addr).await?;
     info!("TCP connected to {}", addr);
 
     // 2. 發送整段資料
-    stream.write_all(data).await?;
-    info!("TCP sent {} bytes to {}", data.len(), addr);
+    stream.write_all(&datas).await?;
+    info!("TCP sent {} bytes to {}", datas.len(), addr);
 
     // 3. 關閉連線
     stream.shutdown().await?;
     Ok(())
 }
 
-pub async fn udp_send_packet() -> Result<(), Box<dyn error::Error>> {
+pub async fn udp_send_packet() -> Result<(), Box<dyn Error>> {
     let addr = "192.168.0.20:60001";
-    let data = b"Hello from Rust by UDP";
+    let datas = b"Hello from Rust by UDP".to_vec();
 
-    let socket = UdpSocket::bind("0.0.0.0:0").await
-        .map_err(|e| format!("bind failed: {}", e) )?;
+    let socket = UdpSocket::bind("0.0.0.0:0").await?;
 
-    let _ = socket.send_to(data, addr).await;
+    let _ = socket.send_to(&datas, addr).await;
     Ok(())
 }
 
@@ -67,7 +66,7 @@ impl WifiReceive {
     }
 
     /// 啟動 TCP 接收任務
-    pub async fn tcp_start(&mut self) -> Result<(), Box<dyn error::Error>> {
+    pub async fn tcp_start(&mut self) -> Result<(), Box<dyn Error>> {
         // 清除停止旗標
         self.tcp_shutdown.store(false, Ordering::SeqCst);
         let listener = 
@@ -112,10 +111,10 @@ impl WifiReceive {
     }
 
     /// 停止 TCP 接收任務
-    pub async fn tcp_receive_stop(&mut self) -> Result<(), Box<dyn error::Error>> {
+    pub async fn tcp_receive_stop(&mut self) -> Result<(), Box<dyn Error>> {
         self.tcp_shutdown.store(true, Ordering::SeqCst);
         match self.tcp_handle.take() {
-            None => Err(box_string_error("TCP task is not running")),
+            None => Err(box_error_mod::box_string_error("TCP task is not running")),
             Some(handle) => {
                 let _ = handle.await;
                 Ok(())
@@ -124,7 +123,7 @@ impl WifiReceive {
     }
 
     /// 啟動 UDP 接收迴圈，只要呼叫 stop 就會跳出迴圈
-    pub async fn udp_start(&mut self) -> Result<(), Box<dyn error::Error>> {
+    pub async fn udp_start(&mut self) -> Result<(), Box<dyn Error>> {
         // 先重置停止旗標
         self.udp_shutdown.store(false, Ordering::SeqCst);
 
@@ -159,13 +158,13 @@ impl WifiReceive {
     }
 
     /// 設定停止旗標並等待任務結束
-    pub async fn udp_stop(&mut self) -> Result<(), Box<dyn error::Error>> {
+    pub async fn udp_stop(&mut self) -> Result<(), Box<dyn Error>> {
         // 觸發停止
         self.udp_shutdown.store(true, Ordering::SeqCst);
 
         match self.udp_handle.take() {
             // 已經沒有任務在跑，回傳錯誤
-            None => Err(box_string_error("UDP task is not running")),
+            None => Err(box_error_mod::box_string_error("UDP task is not running")),
             // 有任務在跑，等待它結束
             Some(handle) => {
                 let _ = handle.await;

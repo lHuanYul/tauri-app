@@ -174,13 +174,12 @@ pub fn line_chart_generate<P: AsRef<path::Path>>(
     folder_path: P,
     file_name: &str,
     chart_name: &str,
-    root_size_x: u32,
-    root_size_y: u32,
     data_points: Vec<i32>,
     x_name: &str,
     y_name: &str,
 ) -> Result<(), Box<dyn Error>> {
     let (root_size_x, root_size_y) = (2160, 1215);
+
     let file_path = directory_mod::create_file(folder_path, file_name).unwrap();
     // 1. 建立繪圖區並填背景
     let root = BitMapBackend::new(&file_path, (root_size_x, root_size_y))
@@ -189,7 +188,7 @@ pub fn line_chart_generate<P: AsRef<path::Path>>(
 
     let legend_area_size = 100;
     let (data_area, legend_area) = 
-        root.split_vertically((root_size_y - legend_area_size) as u32);
+        root.split_vertically(root_size_y - legend_area_size);
 
     // 3. 留邊
     let root_mergin = 40;

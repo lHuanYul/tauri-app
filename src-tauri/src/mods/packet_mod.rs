@@ -1,3 +1,6 @@
+use std::error::Error;
+use crate::mods::box_error_mod;
+
 /// 定義 UART 封包的起始、結尾符號及資料長度常數<br>
 /// Define constants for UART packet start code, end code, and data length
 /* #region define_cmd */
@@ -10,18 +13,18 @@ pub const   PACKET_MAX_SIZE:        usize = PACKET_DATA_MAX_SIZE + 2;
 /// UART 封包結構，包含起始碼、固定長度資料與結尾碼<br>
 /// UartPacket struct representing a UART packet with start code, fixed-size data, and end code
 #[derive(Debug, Clone)]
-pub struct UartPacket {
+pub struct UserPacket {
     start: u8,              // 起始符號 / start code
     data: Vec<u8>,          // 資料陣列 / packet data array
     end: u8,                // 結尾符號 / end code
 }
-impl UartPacket {
+impl UserPacket {
     /// 創建新封包，設定資料與結尾碼<br>
     /// Creates a new UartPacket with the given data and sets the end code
-    pub fn new(data: Vec<u8>) -> Result<Self, String> {
+    pub fn new(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         if data.len() > PACKET_DATA_MAX_SIZE {
-            let msg = format!("Data too long: length = {}, max = {PACKET_DATA_MAX_SIZE}", data.len());
-            return Err(msg);
+            let message = format!("Data too long: length = {}, max = {PACKET_DATA_MAX_SIZE}", data.len());
+            return Err(box_error_mod::box_string_error(message));
         }
         Ok(Self {
             start:  PACKET_START_CODE,
@@ -55,34 +58,34 @@ impl UartPacket {
 
     /// 檢驗起始符號是否正確<br>
     /// Validates that the packet start code matches PACKET_START_CODE
-    pub fn check_start_code(&self) -> Result<(), String> {
+    pub fn check_start_code(&self) -> Result<(), Box<dyn Error>> {
         if self.start != PACKET_START_CODE {
-            let _msg = format!("Invalid packet start code (expected {}): {}", PACKET_START_CODE, self.start);
-            return Err(_msg);
+            let message = format!("Invalid packet start code (expected {}): {}", PACKET_START_CODE, self.start);
+            return Err(box_error_mod::box_string_error(message));
         }
         Ok(())
     }
 
     /// 檢驗結尾符號是否正確<br>
     /// Validates that the packet end code matches PACKET_END_CODE
-    pub fn check_end_code(&self) -> Result<(), String> {
+    pub fn check_end_code(&self) -> Result<(), Box<dyn Error>> {
         if self.end != PACKET_END_CODE {
-            let _msg = format!("Invalid packet end code (expected {}): {}", PACKET_END_CODE, self.end);
-            return Err(_msg);
+            let message = format!("Invalid packet end code (expected {}): {}", PACKET_END_CODE, self.end);
+            return Err(box_error_mod::box_string_error(message));
         }
         Ok(())
     }
 
     /// 從原始緩衝區解析封包並檢驗碼<br>
     /// Parses a raw buffer into a UartPacket and validates start/end codes
-    pub fn pack(data: Vec<u8>) -> Result<Self, String> {
+    pub fn pack(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         if data.first() != Some(&PACKET_START_CODE) {
-            let _msg = format!("Start byte invalid (expected {:?}): {:?}", PACKET_START_CODE, data.first());
-            return Err(_msg);
+            let message = format!("Start byte invalid (expected {:?}): {:?}", PACKET_START_CODE, data.first());
+            return Err(box_error_mod::box_string_error(message));
         }
         if data.last() != Some(&PACKET_END_CODE) {
-            let _msg = format!("End byte invalid (expected {:?}): {:?}", PACKET_END_CODE, data.last());
-            return Err(_msg);
+            let message = format!("End byte invalid (expected {:?}): {:?}", PACKET_END_CODE, data.last());
+            return Err(box_error_mod::box_string_error(message));
         }
         let packet = Self::new(data[1..(data.len()-1)].to_vec())?;
         Ok(packet)
@@ -90,7 +93,7 @@ impl UartPacket {
 
     /// 將封包反序列化為位元組向量<br>
     /// Serializes the UartPacket into a byte vector including start, data, and end codes
-    pub fn unpack(&self) -> Result<Vec<u8>, String> {
+    pub fn unpack(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         self.check_start_code()?;
         self.check_end_code()?;
         let mut buffer: Vec<u8> = Vec::with_capacity(self.data.len() + 2);

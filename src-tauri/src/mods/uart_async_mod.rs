@@ -1,10 +1,10 @@
-use std::{sync::Arc, time::Duration};
+use std::{error::Error, sync::Arc, time::Duration};
 use log::{debug, error, info, trace};
 use tauri::{AppHandle, Manager};
 use serialport::{available_ports, SerialPortInfo};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf}, sync::{watch::{channel, Receiver, Sender}, Mutex}, time::{sleep, timeout}};
-use crate::{mods::{log_mod::CODE_TRACE, packet_mod::{UartPacket, PACKET_END_CODE, PACKET_MAX_SIZE}}, GlobalState};
+use crate::{mods::{log_mod::CODE_TRACE, packet_mod::{UserPacket, PACKET_END_CODE, PACKET_MAX_SIZE}}, GlobalState};
 
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
@@ -58,7 +58,8 @@ impl PortAsyncManager {
         let (shutdown_tx, shutdown_rx) = channel(false);
         self.shutdown_tx = Some(shutdown_tx.clone());
 
-        self.inner.spawn_read_write_loop(app, shutdown_rx);
+        self.inner.read_start(app.clone(), shutdown_rx.clone());
+        self.inner.write_start(app.clone(), shutdown_rx);
         Ok(())
     }
 
@@ -109,7 +110,7 @@ impl PortAsyncManagerInner {
 
     /// 非同步讀取並解析完整封包 <br>
     /// Asynchronously reads and parses one full UartPacket
-    async fn read_packet(&self) -> Result<UartPacket, String> {
+    async fn read_packet(&self) -> Result<UserPacket, String> {
         self.check_open().await?;
         let mut reader_guard = self.reader.lock().await;
         let reader = reader_guard.as_mut().unwrap();
@@ -123,9 +124,13 @@ impl PortAsyncManagerInner {
                 Ok(Ok(byte)) => {
                     buffer.push(byte);
                 },
-                Ok(Err(e)) => { return Err(format!("Read u8 failed: {}", e)); }
+                Ok(Err(e)) => {
+                    return Err(format!("Read u8 failed: {}", e));
+                }
                 Err(_) => {
-                    if buffer.is_empty() { return Err(format!("{}Read nothing", CODE_TRACE)); }
+                    if buffer.is_empty() {
+                        return Err(format!("{}Read nothing", CODE_TRACE));
+                    }
                     if *buffer.last().unwrap() != PACKET_END_CODE {
                         return Err(format!(
                             "Read timeout at {} bytes (or no end code)\n>>> {:?}",
@@ -137,13 +142,15 @@ impl PortAsyncManagerInner {
             };
         }
         
-        let packet = UartPacket::pack(buffer)?;
+        let packet = UserPacket::pack(buffer).map_err(|e| {
+            e.to_string()
+        })?;
         Ok(packet)
     }
 
     /// 非同步寫入封包到序列埠 <br>
     /// Asynchronously writes a UartPacket to the serial port
-    async fn write_packet(&self, packet: UartPacket) -> Result<(), String> {
+    async fn write_packet(&self, packet: UserPacket) -> Result<(), Box<dyn Error>> {
         self.check_open().await?;
         let mut writer_guard = self.writer.lock().await;
         let writer = writer_guard.as_mut().unwrap();
@@ -152,62 +159,63 @@ impl PortAsyncManagerInner {
         Ok(())
     }
 
-    /// 建立並啟動讀寫背景工作迴圈 <br>
-    /// Spawns background tasks for continuous read/write loops
-    fn spawn_read_write_loop(
-        self: &Arc<Self>,
-        app: AppHandle,
-        shutdown_rx: Receiver<bool>,
-    ) {
+    pub fn read_start(self: &Arc<Self>, app: AppHandle, shutdown_rx: Receiver<bool>) {
         let arc_read = Arc::clone(self);
-        let shutdown_read = shutdown_rx.clone();
         let read_handle = app.clone();
         tokio::spawn(async move {
             loop {
-                if *shutdown_read.borrow() { break; }
-                let result = arc_read.read_packet().await;
-                if let Err(e) = &result {
-                    if let Some(rest) = e.strip_prefix(CODE_TRACE) {
-                        trace!("{}", rest);
-                    } else {
-                        error!("{}", e);
-                    }
-                    sleep(Duration::from_millis(10)).await;
-                    continue;
+                // 讀到 true 就 break
+                if *shutdown_rx.borrow() {
+                    break;
                 }
-                let packet = result.unwrap();
-                debug!("Port read succeed:\n{}", packet.show());
-                {
-                    let global_state = read_handle.state::<GlobalState>();
-                    let mut receive_buffer = global_state.receive_buffer.lock().await;
-                    let _ = receive_buffer.push(packet).map_err(|e| {
-                        error!("Packet store failed: {}", e);
-                    });
-                    // receive_buffer.show(5);
-                };
+
+                match arc_read.read_packet().await {
+                    Err(e) => {
+                        let msg = e.to_string();
+                        if let Some(rest) = msg.strip_prefix(CODE_TRACE) {
+                            trace!("{}", rest);
+                        } else {
+                            error!("{}", msg);
+                        }
+                        sleep(Duration::from_millis(10)).await;
+                    }
+                    Ok(packet) => {
+                        debug!("Port read succeed:\n{}", packet.show());
+                        let global_state = read_handle.state::<GlobalState>();
+                        let mut buf = global_state.receive_buffer.lock().await;
+                        if let Err(e) = buf.push(packet) {
+                            error!("Packet store failed: {}", e);
+                        }
+                    }
+                }
             }
         });
+    }
 
+    pub fn write_start(self: &Arc<Self>, app: AppHandle, shutdown_rx: Receiver<bool>) {
         let arc_write = Arc::clone(self);
-        let shutdown_write = shutdown_rx.clone();
         let write_handle = app.clone();
         tokio::spawn(async move {
             loop {
-                if *shutdown_write.borrow() { break; }
-                let maybe_pkt = {
-                    let global_state = write_handle.state::<GlobalState>();
-                    let mut transfer_buffer = global_state.transfer_buffer.lock().await;
-                    transfer_buffer.pop_front()
-                };
-                if maybe_pkt.is_none() {
-                    sleep(Duration::from_millis(10)).await;
-                    continue;
+                if *shutdown_rx.borrow() {
+                    break;
                 }
-                let packet = maybe_pkt.unwrap();
-                let _ = arc_write.write_packet(packet.clone()).await.map_err(|e| {
-                    error!("Port write failed: {}", e);
-                });
-                debug!("Port write succeed:\n{}", packet.show());
+
+                let maybe_pkt = {
+                    let state = write_handle.state::<GlobalState>();
+                    let mut buf = state.transfer_buffer.lock().await;
+                    buf.pop_front()
+                };
+
+                if let Some(packet) = maybe_pkt {
+                    if let Err(e) = arc_write.write_packet(packet.clone()).await {
+                        error!("Port write failed: {}", e);
+                    } else {
+                        debug!("Port write succeed:\n{}", packet.show());
+                    }
+                } else {
+                    sleep(Duration::from_millis(10)).await;
+                }
             }
         });
     }

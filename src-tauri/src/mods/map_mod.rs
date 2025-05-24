@@ -1,7 +1,7 @@
 use std::fs;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use crate::mods::directory_mod::{create_file, path_to_string};
+use crate::mods::directory_mod::create_file;
 
 /// 常數：用於 C 程式碼縮排  
 /// Constant: indentation for generated C code
@@ -134,8 +134,7 @@ pub fn map_save(
     // Write C source file
     fs::write(&h_path, MAP_BASE_H).map_err(|e| format!("Write .h file error: {}", e))?;
     fs::write(&c_path, c_code    ).map_err(|e| format!("Write .c file error: {}", e))?;
-    let c_path_str = path_to_string(&c_path).unwrap_or_else(|e| e.clone());
-    info!("Wrote C file to {}", c_path_str);
+    info!("Wrote C file to {:?}", c_path);
 
     // 序列化並寫入 JSON 檔案
     // Serialize and write JSON file
@@ -143,8 +142,7 @@ pub fn map_save(
         .map_err(|e| format!("Serialize JSON error: {}", e))?;
     fs::write(&json_path, json_text)
         .map_err(|e| format!("Write JSON file error: {}", e))?;
-    let json_path_str = path_to_string(&json_path).unwrap_or_else(|e| e.clone());
-    info!("Wrote JSON file to {}", json_path_str);
-
-    Ok(c_path_str)
+    info!("Wrote JSON file to {:?}", json_path);
+    
+    Ok(c_path.to_string_lossy().into_owned())
 }

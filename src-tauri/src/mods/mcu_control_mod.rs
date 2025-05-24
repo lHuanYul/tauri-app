@@ -1,12 +1,12 @@
-use log::{debug, info};
+use log::{debug, error, info};
 use tauri::{AppHandle, Manager};
-use crate::{mods::{packet_mod::UartPacket, mcu_const}, GlobalState};
+use crate::{mods::{packet_mod::UserPacket, mcu_const}, GlobalState};
 
 /// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
 /// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
 #[derive(Debug)]
 pub struct TrReBuffer {
-    packets: Vec<UartPacket>,  // 真正的槽位 / storage for packets
+    packets: Vec<UserPacket>,  // 真正的槽位 / storage for packets
     max_length: usize,         // 最大槽位數 / maximum number of slots
 }
 impl TrReBuffer {
@@ -39,7 +39,7 @@ impl TrReBuffer {
 
     /// 將封包推入尾端；若容量已滿則回傳 Err <br>
     /// Pushes a packet to the end; returns Err if the buffer is full
-    pub fn push(&mut self, packet: UartPacket) -> Result<(), String> {
+    pub fn push(&mut self, packet: UserPacket) -> Result<(), String> {
         if self.is_full() {
             let _msg = format!("Buffer is full (max: {})", self.max_length);
             return Err(_msg);
@@ -50,7 +50,7 @@ impl TrReBuffer {
 
     /// 從前端彈出並回傳封包；若為空則回傳 None <br>
     /// Removes and returns the packet at the front; returns None if empty
-    pub fn pop_front(&mut self) -> Option<UartPacket> {
+    pub fn pop_front(&mut self) -> Option<UserPacket> {
         if self.packets.is_empty() {
             None
         } else {
@@ -60,7 +60,7 @@ impl TrReBuffer {
 
     /// 取出所有封包並清空緩衝區<br>
     /// Takes all packets and clears the buffer
-    pub fn take_all(&mut self) -> Vec<UartPacket> {
+    pub fn take_all(&mut self) -> Vec<UserPacket> {
         std::mem::take(&mut self.packets)
     }
 
@@ -144,7 +144,11 @@ pub async fn cmd_send_spd_stop(app: AppHandle) -> Result<(), String> {
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_STOP.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_STOP.payload.to_vec());
     let mut transfer_buffer = global_state.transfer_buffer.lock().await;
-    let packet = UartPacket::new(cmd)?;
+    let packet = UserPacket::new(cmd).map_err(|e| {
+        let message = format!("{}", e);
+        error!("{}", message);
+        message
+    })?;
     transfer_buffer.push(packet)?;
     Ok(())
 }
@@ -157,7 +161,11 @@ pub async fn cmd_send_spd_once(app: AppHandle) -> Result<(), String> {
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_ONCE.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_ONCE.payload.to_vec());
     let mut transfer_buffer = global_state.transfer_buffer.lock().await;
-    let packet = UartPacket::new(cmd)?;
+    let packet = UserPacket::new(cmd).map_err(|e| {
+        let message = format!("{}", e);
+        error!("{}", message);
+        message
+    })?;
     transfer_buffer.push(packet)?;
     Ok(())
 }
@@ -170,8 +178,11 @@ pub async fn cmd_send_spd_start(app: AppHandle) -> Result<(), String> {
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_START.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_START.payload.to_vec());
     let mut transfer_buffer = global_state.transfer_buffer.lock().await;
-    let packet = UartPacket::new(cmd)?;
+    let packet = UserPacket::new(cmd).map_err(|e| {
+        let message = format!("{}", e);
+        error!("{}", message);
+        message
+    })?;
     transfer_buffer.push(packet)?;
     Ok(())
 }
-

@@ -1,7 +1,7 @@
 use libloading::{Library, Symbol};
 use libc::{c_char, c_double, c_int};
 use log::{debug, error, info};
-use std::{ffi::{c_void, CString, CStr}, ptr};
+use std::{error::Error, ffi::{c_void, CStr, CString}, ptr};
 use crate::{mods::directory_mod::{create_file, path_to_string}, MATLAB_LIBENG_DLL_PATH};
 
 const MATLAB_LIBMX_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win64/libmx.dll";
@@ -173,7 +173,7 @@ pub fn run_engine_plot(
     engine: &mut MatlabEngine,
     a: f64,
     b: f64,
-) -> Result<String, String> {
+) -> Result<String, Box<dyn Error>> {
     //let file_name = format!("chart_{}.png", chrono::Local::now().format("%Y%m%d%H%M%S"));
     let file_path = create_file(CHARTS_FOLDER_PATH, &format!("matlab.png")).map_err(|e| {
         error!("{}", e);
