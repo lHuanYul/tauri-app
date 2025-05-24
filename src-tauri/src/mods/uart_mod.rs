@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use log::{debug, error, info, trace};
 use tauri::{AppHandle, Manager};
 use serialport::{available_ports, SerialPortInfo};
@@ -15,19 +15,19 @@ const   MAX_RECEIVE_BUFFER_SIZE:    usize   = PACKET_MAX_SIZE;
 
 /// 非同步序列埠管理器 <br>
 /// Asynchronous serial port manager
-pub struct PortAsyncManager {
+pub struct UartAsyncManager {
     port_name: Option<String>,          // 序列埠名稱／port name
-    inner: Arc<PortAsyncManagerInner>,  // 內部管理結構／inner manager
-    shutdown_tx: Option<Sender<bool>>,  // 停止訊號傳送者／shutdown signal sender
+    inner: Arc<UartAsyncManagerInner>,  // 內部管理結構／inner manager
+    shutdown: Option<Sender<bool>>,  // 停止訊號傳送者／shutdown signal sender
 }
-impl PortAsyncManager {
+impl UartAsyncManager {
     /// 建立新管理器，尚未開啟任何埠 <br>
     /// Creates a new manager with no open port
     pub fn new() -> Self {
         Self {
             port_name: None,
-            inner: Arc::new(PortAsyncManagerInner::new()),
-            shutdown_tx: None,
+            inner: Arc::new(UartAsyncManagerInner::new()),
+            shutdown: None,
         }
     }
 
@@ -56,7 +56,7 @@ impl PortAsyncManager {
         *self.inner.reader.lock().await = Some(reader);
         *self.inner.writer.lock().await = Some(writer);
         let (shutdown_tx, shutdown_rx) = channel(false);
-        self.shutdown_tx = Some(shutdown_tx.clone());
+        self.shutdown = Some(shutdown_tx.clone());
 
         self.inner.read_start(app.clone(), shutdown_rx.clone());
         self.inner.write_start(app.clone(), shutdown_rx);
@@ -66,13 +66,13 @@ impl PortAsyncManager {
     /// 關閉目前序列埠，並停止讀寫迴圈 <br>
     /// Closes the current port and stops the read/write loop
     pub async fn close(&mut self) -> Result<(), String> {
-        if let Some(shutdown_tx) = self.shutdown_tx.take() {
+        if let Some(shutdown_tx) = self.shutdown.take() {
             let _ = shutdown_tx.send(true);
         }
         self.port_name = None;
         *self.inner.reader.lock().await = None;
         *self.inner.writer.lock().await = None;
-        self.shutdown_tx = None;
+        self.shutdown = None;
         Ok(())
     }
 
@@ -85,11 +85,11 @@ impl PortAsyncManager {
 
 /// 內部序列埠管理結構 <br>
 /// Internal struct for managing serial port operations
-pub struct PortAsyncManagerInner {
+pub struct UartAsyncManagerInner {
     reader: Mutex<Option<ReadHalf<SerialStream>>>,  // 讀取半部／read half
     writer: Mutex<Option<WriteHalf<SerialStream>>>, // 寫入半部／write half
 }
-impl PortAsyncManagerInner {
+impl UartAsyncManagerInner {
     /// 建立內部管理實例 <br>
     /// Creates the inner manager instance
     fn new() -> Self {
@@ -150,26 +150,23 @@ impl PortAsyncManagerInner {
 
     /// 非同步寫入封包到序列埠 <br>
     /// Asynchronously writes a UartPacket to the serial port
-    async fn write_packet(&self, packet: UserPacket) -> Result<(), Box<dyn Error>> {
+    async fn write_packet(&self, packet: UserPacket) -> Result<(), String> {
         self.check_open().await?;
         let mut writer_guard = self.writer.lock().await;
         let writer = writer_guard.as_mut().unwrap();
-        let buffer = packet.unpack()?;
+        let buffer = packet.unpack().map_err(|e| e.to_string())?;
         writer.write_all(&buffer).await.map_err(|e| format!("Write failed: {}", e))?;
         Ok(())
     }
 
-    pub fn read_start(self: &Arc<Self>, app: AppHandle, shutdown_rx: Receiver<bool>) {
-        let arc_read = Arc::clone(self);
-        let read_handle = app.clone();
+    pub fn read_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+        let arc_handle = Arc::clone(self);
+        let app_handle = app.clone();
         tokio::spawn(async move {
             loop {
                 // 讀到 true 就 break
-                if *shutdown_rx.borrow() {
-                    break;
-                }
-
-                match arc_read.read_packet().await {
+                if *shutdown.borrow() { break; }
+                match arc_handle.read_packet().await {
                     Err(e) => {
                         let msg = e.to_string();
                         if let Some(rest) = msg.strip_prefix(CODE_TRACE) {
@@ -181,8 +178,8 @@ impl PortAsyncManagerInner {
                     }
                     Ok(packet) => {
                         debug!("Port read succeed:\n{}", packet.show());
-                        let global_state = read_handle.state::<GlobalState>();
-                        let mut buf = global_state.receive_buffer.lock().await;
+                        let global_state = app_handle.state::<GlobalState>();
+                        let mut buf = global_state.uart_recv_buffer.lock().await;
                         if let Err(e) = buf.push(packet) {
                             error!("Packet store failed: {}", e);
                         }
@@ -192,23 +189,19 @@ impl PortAsyncManagerInner {
         });
     }
 
-    pub fn write_start(self: &Arc<Self>, app: AppHandle, shutdown_rx: Receiver<bool>) {
-        let arc_write = Arc::clone(self);
-        let write_handle = app.clone();
+    pub fn write_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+        let arc_handle = Arc::clone(self);
+        let app_handle = app.clone();
         tokio::spawn(async move {
             loop {
-                if *shutdown_rx.borrow() {
-                    break;
-                }
-
+                if *shutdown.borrow() { break; }
                 let maybe_pkt = {
-                    let state = write_handle.state::<GlobalState>();
-                    let mut buf = state.transfer_buffer.lock().await;
+                    let state = app_handle.state::<GlobalState>();
+                    let mut buf = state.uart_traf_buffer.lock().await;
                     buf.pop_front()
                 };
-
                 if let Some(packet) = maybe_pkt {
-                    if let Err(e) = arc_write.write_packet(packet.clone()).await {
+                    if let Err(e) = arc_handle.write_packet(packet.clone()).await {
                         error!("Port write failed: {}", e);
                     } else {
                         debug!("Port write succeed:\n{}", packet.show());
@@ -225,7 +218,7 @@ impl PortAsyncManagerInner {
 /// Tauri command: list available port names
 #[tauri::command]
 pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
-    let ports = PortAsyncManager::available().await?;
+    let ports = UartAsyncManager::available().await?;
     let names = ports.into_iter().rev().map(|info| info.port_name).collect();
     info!("All available ports: {:?}", names);
     Ok(names)
@@ -236,7 +229,7 @@ pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
 #[tauri::command]
 pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     let global_state = app.state::<GlobalState>();
-    let state = global_state.main_port.lock().await;
+    let state = global_state.uart_manager.lock().await;
     state.check_open().await.is_ok()
 }
 
@@ -245,7 +238,7 @@ pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
 #[tauri::command]
 pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
-    let mut state = global_state.main_port.lock().await;
+    let mut state = global_state.uart_manager.lock().await;
     state.open(app.clone(), &port_name, 115200, 1000).await.map_err(|e| {
         error!("{}", e);
         e.clone()
@@ -260,7 +253,7 @@ pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<St
 #[tauri::command]
 pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
-    let mut port = global_state.main_port.lock().await;
+    let mut port = global_state.uart_manager.lock().await;
     port.close().await.map_err(|e| {
         error!("{}", e);
         e.clone()
