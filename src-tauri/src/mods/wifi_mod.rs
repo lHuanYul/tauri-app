@@ -1,11 +1,13 @@
 use std::{sync::Arc, net::UdpSocket as StdUdpSocket};
-use log::info;
+use log::{info, warn};
 use tokio::{net::{TcpListener, UdpSocket}, sync::{watch::{channel, Receiver, Sender}, Mutex}, io::AsyncReadExt};
 use tauri::{AppHandle, Manager};
-use crate::GlobalState;
+use crate::{GlobalState, mods::wifi_packet_proc_mod};
 
 const TCP_PORT: &str = "60000";
 const UDP_PORT: &str = "60001";
+
+const   MAX_RECEIVE_BUFFER_SIZE: usize = wifi_packet_proc_mod::WIFI_PACKET_MAX_SIZE;
 
 pub struct WifiAsyncManager {
     device_ip: String,
@@ -46,8 +48,8 @@ impl WifiAsyncManager {
         *self.inner.udp_socket.lock().await = Some(udp_socket);
 
         // 啟動背景 task
-        self.inner.start_tcp_loop(app.clone(), shutdown_rx.clone());
-        self.inner.start_udp_loop(app, shutdown_rx);
+        self.inner.tcp_read_start(app.clone(), shutdown_rx.clone());
+        self.inner.udp_read_start(app, shutdown_rx);
         Ok(())
     }
 
@@ -74,7 +76,7 @@ impl WifiAsyncManagerInner {
     }
 
     /// spawn TCP 接收迴圈
-    fn start_tcp_loop(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    fn tcp_read_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {
@@ -83,7 +85,7 @@ impl WifiAsyncManagerInner {
                 let mut guard = arc_handle.tcp_listener.lock().await;
                 if let Some(listener) = guard.as_mut() {
                     if let Ok((mut stream, peer)) = listener.accept().await {
-                        let mut buf = vec![0u8; 1024];
+                        let mut buf = vec![0u8; MAX_RECEIVE_BUFFER_SIZE];
                         if let Ok(n) = stream.read(&mut buf).await {
                             let data = &buf[..n];
                             info!("TCP got {} bytes from {}: {:?}", n, peer, data);
@@ -95,20 +97,27 @@ impl WifiAsyncManagerInner {
     }
 
     /// spawn UDP 接收迴圈
-    fn start_udp_loop(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    fn udp_read_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {
             loop {
                 if *shutdown.borrow() { break; }
                 let mut guard = arc_handle.udp_socket.lock().await;
-                if let Some(socket) = guard.as_mut() {
-                    let mut buf = vec![0u8; 1500];
-                    if let Ok((n, peer)) = socket.recv_from(&mut buf).await {
-                        let data = &buf[..n];
-                        info!("UDP got {} bytes from {}: {:?}", n, peer, data);
-                    }
-                }
+                let socket = if let Some(skt) = guard.as_mut() {
+                    skt
+                } else {
+                    continue;
+                };
+                let mut buf = vec![0u8; MAX_RECEIVE_BUFFER_SIZE];
+                let (n, peer) = if let Ok(pair) = socket.recv_from(&mut buf).await {
+                    pair
+                } else {
+                    warn!("UDP recv_from failed");
+                    continue;
+                };
+                let data = &buf[..n];
+                info!("UDP got {} bytes from {}: {:?}", n, peer, data);
             }
         });
     }
