@@ -4,10 +4,10 @@ use plotters::prelude::*;
 use rand::{self, Rng};
 use base64::{engine::general_purpose, Engine};
 use tauri::{AppHandle, Manager};
-use crate::{mods::directory_mod, GlobalState, GENERATE_FOLDER_PATH};
+use crate::{mods::directory_mod, GlobalState, ROOT_GEN_FILES_FOLDER};
 
 fn store_folder() -> String {
-    format!("{}/chart", GENERATE_FOLDER_PATH)
+    format!("{}/chart", ROOT_GEN_FILES_FOLDER)
 }
 
 pub struct ChartRandDatas {

@@ -1,11 +1,11 @@
 use std::{env, error::Error, fs::{self, File}, path::{Path, PathBuf}};
 use log::{debug, info, warn};
-use tauri::{App, Manager};
+use tauri::{AppHandle, Manager};
 use crate::GlobalState;
 
 /// 初始化工作目錄並回傳其 Mutex 包裝的 PathBuf <br>
 /// Initialize the working directory and return it wrapped in a Mutex
-pub fn setup(app: &mut App) {
+pub fn setup(app: AppHandle) {
     let global_state = app.state::<GlobalState>();
     let mut root_path = global_state.root_path.lock().unwrap();
     // 嘗試取得當前工作目錄，失敗時以 "." 作為預設 / Try to get current dir, fallback to "."

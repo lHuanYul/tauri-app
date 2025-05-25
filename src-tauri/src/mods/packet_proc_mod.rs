@@ -2,9 +2,11 @@ use std::{error::Error, fs};
 use log::{debug, error, info};
 use regex::Regex;
 use tauri::{AppHandle, Manager};
-use crate::{GlobalState, mods::{directory_mod, mcu_const, mcu_store_mod::{DataType, MotorDataType}, packet_mod::UserPacket}};
+use crate::{mods::{directory_mod, mcu_const, mcu_store_mod::{DataType, MotorDataType}, packet_mod::UserPacket}, GlobalState, BASE_GEN_FILES_FOLDER, ROOT_GEN_FILES_FOLDER};
 
-const H_FILE_GEN_FOLDER: &str = "generate/base";
+const CONST_RS_PATH: &str = include_str!(
+    concat!(env!("CARGO_MANIFEST_DIR"), "/src/mods/mcu_const.rs")
+);
 
 /// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
 /// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
@@ -83,14 +85,13 @@ impl TrceBuffer {
 
 pub fn gen_h_file(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let global_state = app.state::<GlobalState>();
-    let root_path= {
-        let root_path = global_state.root_path.lock().unwrap();
-        root_path.clone()
+    let folder_path= {
+        let root_path = global_state.root_path.lock().unwrap().clone();
+        root_path.join(ROOT_GEN_FILES_FOLDER).join(BASE_GEN_FILES_FOLDER)
     };
-    let src_path = root_path.join("src/mods/mcu_const.rs");
-    let src = fs::read_to_string(&src_path)?;
+    let src = CONST_RS_PATH.to_string();
     let out_h = 
-        directory_mod::create_file(root_path.join(H_FILE_GEN_FOLDER), "mcu_const.h")?;
+        directory_mod::create_file(folder_path, "mcu_const.h")?;
     
     let mut contents = format!(
         "/**\n * ! Generate by code, do not edit !\n */\n#ifndef MCU_CONST_H\n#define MCU_CONST_H\n\n#include <stdint.h>\n\n"

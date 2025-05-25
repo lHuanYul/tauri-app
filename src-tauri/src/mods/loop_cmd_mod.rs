@@ -3,7 +3,7 @@ use tauri::AppHandle;
 use tokio::time::interval;
 use crate::mods::packet_proc_mod;
 
-pub fn init_timer(app: AppHandle) {
+pub fn setup(app: AppHandle) {
     let app_10ms = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_millis(10));

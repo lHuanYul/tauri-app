@@ -1,7 +1,8 @@
 use std::fs;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use crate::mods::directory_mod::create_file;
+use tauri::{AppHandle, Manager};
+use crate::{mods::directory_mod::create_file, GlobalState, MAP_GEN_FILES_FOLDER, ROOT_GEN_FILES_FOLDER};
 
 /// 常數：用於 C 程式碼縮排  
 /// Constant: indentation for generated C code
@@ -14,7 +15,6 @@ type LenType = u32;
 
 /// 常數：儲存檔案的資料夾路徑  
 /// Constant: folder path to store generated files
-const STORE_FOLDER: &str = "generate/map";
 const MAP_BASE_H: &str = include_str!(
     concat!(env!("CARGO_MANIFEST_DIR"), "/generate_base/map/map_base.h")
 );
@@ -56,9 +56,15 @@ struct InItem {
 /// Tauri 命令：載入現存的 JSON 檔案  
 /// Tauri command: load existing JSON file
 #[tauri::command]
-pub fn map_load() -> Result<String, String> {
+pub fn map_load(app: AppHandle) -> Result<String, String> {
+    let global_state = app.state::<GlobalState>();
+    let folder_path = {
+        let root_path = global_state.root_path.lock().unwrap().clone();
+        root_path.join(ROOT_GEN_FILES_FOLDER).join(MAP_GEN_FILES_FOLDER)
+    };
+
     // 建立檔案（存在則不覆寫），並讀取內容 / Create or reuse file, then read its content
-    let json_path = create_file(STORE_FOLDER, "map_info.json").map_err(|e| {
+    let json_path = create_file(folder_path, "map_info.json").map_err(|e| {
         error!("{}", e);
     }).unwrap();
     let result = fs::read_to_string(&json_path)
@@ -76,10 +82,9 @@ pub fn map_load() -> Result<String, String> {
 /// Parses incoming JSON `data` and generates a C initializer array plus a JSON file.
 #[tauri::command]
 pub fn map_save(
+    app: AppHandle,
     data: String
 ) -> Result<String, String> {
-    info!("Received data: {}", data);
-
     // 反序列化 JSON 並轉成 InItem 向量
     // Deserialize JSON into Vec<InItem>
     let items: Vec<InItem> = serde_json::from_str(&data)
@@ -88,17 +93,21 @@ pub fn map_save(
             error!("{}", msg);
             msg
         })?;
-    info!("Parsed {} items", items.len());
 
     // 準備輸出檔案路徑與緩衝
     // Prepare file paths and buffers
-    let c_path = create_file(STORE_FOLDER, "map_info.c").map_err(|e| {
+    let global_state = app.state::<GlobalState>();
+    let folder_path = {
+        let root_path = global_state.root_path.lock().unwrap().clone();
+        root_path.join(ROOT_GEN_FILES_FOLDER).join(MAP_GEN_FILES_FOLDER)
+    };
+    let c_path = create_file(folder_path.clone(), "map_info.c").map_err(|e| {
         error!("{}", e);
     }).unwrap();
-    let h_path = create_file(STORE_FOLDER, "map_base.h").map_err(|e| {
+    let h_path = create_file(folder_path.clone(), "map_base.h").map_err(|e| {
         error!("{}", e);
     }).unwrap();
-    let json_path = create_file(STORE_FOLDER, "map_info.json").map_err(|e| {
+    let json_path = create_file(folder_path, "map_info.json").map_err(|e| {
         error!("{}", e);
     }).unwrap();
     let mut c_code = String::new();
@@ -106,7 +115,7 @@ pub fn map_save(
 
     // 建立 C 程式碼與 JSON 結構
     // Build C code and JSON structures
-    c_code.push_str("#include \"principal/map_base.h\"\n\n");
+    c_code.push_str("#include \"user/map_base.h\"\n\n");
     c_code.push_str("LOCATION locations_info[] = {\n");
     for item in items.iter() {
         let id = item.id;  // 使用輸入的 id / use id from input
