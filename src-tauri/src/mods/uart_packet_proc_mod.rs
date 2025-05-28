@@ -1,87 +1,12 @@
-use std::{error::Error, fs, mem};
-use log::{debug, error, info};
+use std::{error::Error, fs};
+use log::error;
 use regex::Regex;
 use tauri::{AppHandle, Manager};
-use crate::{mods::{directory_mod, mcu_const, mcu_store_mod::{DataType, MotorDataType}, uart_packet_mod::UartPacket}, GlobalState, BASE_GEN_FILES_FOLDER, ROOT_GEN_FILES_FOLDER};
+use crate::{mods::{directory_mod, mcu_const, mcu_store_mod::{DataType, MotorDataType}}, GlobalState, BASE_GEN_FILES_FOLDER, ROOT_GEN_FILES_FOLDER};
 
 const CONST_RS_PATH: &str = include_str!(
     concat!(env!("CARGO_MANIFEST_DIR"), "/src/mods/mcu_const.rs")
 );
-
-/// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
-/// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
-#[derive(Debug)]
-pub struct UartTransceiveBuffer {
-    packets: Vec<UartPacket>,  // 真正的槽位 / storage for packets
-    max_length: usize,         // 最大槽位數 / maximum number of slots
-}
-impl UartTransceiveBuffer {
-    /// 建立 Transceive Buffer，並指定最大容量<br>
-    /// Creates a new TrReBuffer with a specified maximum capacity
-    pub fn new(max_length: usize) -> Self {
-        Self {
-            packets:    Vec::new(),
-            max_length,
-        }
-    }
-
-    /// 取得目前已儲存封包數<br>
-    /// Returns the current number of stored packets
-    pub fn get_length(&self) -> usize {
-        self.packets.len()
-    }
-
-    /// 檢查緩衝區是否已滿<br>
-    /// Returns true if the buffer has reached its maximum capacity
-    pub fn is_full(&self) -> bool {
-        self.packets.len() >= self.max_length
-    }
-
-    /// 檢查緩衝區是否為空<br>
-    /// Returns true if the buffer is empty
-    pub fn is_empty(&self) -> bool {
-        self.packets.is_empty()
-    }
-
-    /// 將封包推入尾端；若容量已滿則回傳 Err <br>
-    /// Pushes a packet to the end; returns Err if the buffer is full
-    pub fn push(&mut self, packet: UartPacket) -> Result<(), Box<dyn Error + Send + Sync>> {
-        if self.is_full() {
-            let message = format!("Buffer is full (max: {})", self.max_length);
-            return Err(message.into());
-        }
-        self.packets.push(packet);
-        Ok(())
-    }
-
-    // 從前端彈出並回傳封包；若為空則回傳 None <br>
-    /// Removes and returns the packet at the front; returns None if empty
-    pub fn pop_front(&mut self) -> Result<UartPacket, Box<dyn Error + Send + Sync>> {
-        if self.is_empty() {
-            let message = format!("Buffer is empty");
-            return Err(message.into());
-        }
-        Ok(self.packets.remove(0))
-    }
-
-    /// 取出所有封包並清空緩衝區<br>
-    /// Takes all packets and clears the buffer
-    pub fn take_all(&mut self) -> Vec<UartPacket> {
-        mem::take(&mut self.packets)
-    }
-
-    /// 顯示前 n 個封包，不會從緩衝區移除<br>
-    /// Shows the first n packets without removing them from the buffer
-    pub fn show(&self, n: usize) {
-        let count = self.packets.len().min(n);
-        if n > count {
-            debug!("Ask for show {}, but only have {}", n, self.packets.len());
-        }
-        for (idx, pkt) in self.packets.iter().take(count).enumerate() {
-            info!("TrReBuffer show[{}]:\n{}", idx, pkt.show());
-        }
-    }
-}
 
 /// 生成 MCU 常量的 C 標頭檔案<br>
 /// Generates a C header file containing MCU constant definitions

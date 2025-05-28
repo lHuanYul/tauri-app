@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Mutex as SyncMutex};
 use tokio::sync::{Mutex as AsyncMutex};
 use log::LevelFilter;
 use mods::{
-    directory_mod, log_mod, loop_cmd_mod, map_mod, matlab_mod::{self}, mcu_control_mod, mcu_store_mod, plotter_mod::{self}, tauri_test_mod, uart_mod::{self}, uart_packet_proc_mod, wifi_mod::{self}, wifi_packet_mod, wifi_packet_proc_mod
+    directory_mod, log_mod, loop_cmd_mod, map_mod, matlab_mod::{self}, mcu_control_mod, mcu_store_mod, plotter_mod::{self}, tauri_test_mod, uart_mod::{self}, uart_packet_mod, wifi_mod::{self}, wifi_packet_mod
 };
 
 pub mod mods {
@@ -40,13 +40,13 @@ pub const MATLAB_LIBENG_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win
 pub struct GlobalState {
     pub root_path:                  SyncMutex <PathBuf>,
     pub uart_manager:               AsyncMutex<uart_mod::UartAsyncManager>,
-    pub uart_receive_buffer:        AsyncMutex<uart_packet_proc_mod::UartTransceiveBuffer>,
-    pub uart_transmit_buffer:       AsyncMutex<uart_packet_proc_mod::UartTransceiveBuffer>,
+    pub uart_receive_buffer:        AsyncMutex<uart_packet_mod::UartTransceiveBuffer>,
+    pub uart_transmit_buffer:       AsyncMutex<uart_packet_mod::UartTransceiveBuffer>,
     pub wifi_manager:               AsyncMutex<wifi_mod::WifiAsyncManager>,
-    pub wifi_tcp_receive_buffer:    AsyncMutex<wifi_packet_proc_mod::WifiTrceBuffer>,
-    pub wifi_tcp_transmit_buffer:   AsyncMutex<wifi_packet_proc_mod::WifiTrceBuffer>,
-    pub wifi_udp_receive_buffer:    AsyncMutex<wifi_packet_proc_mod::WifiTrceBuffer>,
-    pub wifi_udp_transmit_buffer:   AsyncMutex<wifi_packet_proc_mod::WifiTrceBuffer>,
+    pub wifi_tcp_receive_buffer:    AsyncMutex<wifi_packet_mod::WifiTrceBuffer>,
+    pub wifi_tcp_transmit_buffer:   AsyncMutex<wifi_packet_mod::WifiTrceBuffer>,
+    pub wifi_udp_receive_buffer:    AsyncMutex<wifi_packet_mod::WifiTrceBuffer>,
+    pub wifi_udp_transmit_buffer:   AsyncMutex<wifi_packet_mod::WifiTrceBuffer>,
     pub store_datas:                AsyncMutex<mcu_store_mod::DataStore>,
     pub matlab_engine:              SyncMutex <matlab_mod::MatlabEngine>,
     pub rand_datas:                 AsyncMutex<plotter_mod::ChartRandDatas>,
@@ -58,13 +58,13 @@ pub fn run() {
     let global_state = GlobalState {
         root_path:                  SyncMutex ::new(PathBuf::new()),
         uart_manager:               AsyncMutex::new(uart_mod::UartAsyncManager::new()),
-        uart_receive_buffer:        AsyncMutex::new(uart_packet_proc_mod::UartTransceiveBuffer::new(10)),
-        uart_transmit_buffer:       AsyncMutex::new(uart_packet_proc_mod::UartTransceiveBuffer::new(10)),
+        uart_receive_buffer:        AsyncMutex::new(uart_packet_mod::UartTransceiveBuffer::new(10)),
+        uart_transmit_buffer:       AsyncMutex::new(uart_packet_mod::UartTransceiveBuffer::new(10)),
         wifi_manager:               AsyncMutex::new(wifi_mod::WifiAsyncManager::new()),
-        wifi_tcp_receive_buffer:    AsyncMutex::new(wifi_packet_proc_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_TCP_PACKET_MAX_SIZE)),
-        wifi_tcp_transmit_buffer:   AsyncMutex::new(wifi_packet_proc_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_TCP_PACKET_MAX_SIZE)),
-        wifi_udp_receive_buffer:    AsyncMutex::new(wifi_packet_proc_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_UDP_PACKET_MAX_SIZE)),
-        wifi_udp_transmit_buffer:   AsyncMutex::new(wifi_packet_proc_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_UDP_PACKET_MAX_SIZE)),
+        wifi_tcp_receive_buffer:    AsyncMutex::new(wifi_packet_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_TCP_PACKET_MAX_SIZE)),
+        wifi_tcp_transmit_buffer:   AsyncMutex::new(wifi_packet_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_TCP_PACKET_MAX_SIZE)),
+        wifi_udp_receive_buffer:    AsyncMutex::new(wifi_packet_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_UDP_PACKET_MAX_SIZE)),
+        wifi_udp_transmit_buffer:   AsyncMutex::new(wifi_packet_mod::WifiTrceBuffer::new(10, wifi_packet_mod::WIFI_UDP_PACKET_MAX_SIZE)),
         store_datas:                AsyncMutex::new(mcu_store_mod::DataStore::new(100)),
         matlab_engine:              SyncMutex ::new(matlab_mod::MatlabEngine::new()),
         rand_datas:                 AsyncMutex::new(plotter_mod::ChartRandDatas::new_rand("temp", "disp", 100)),
