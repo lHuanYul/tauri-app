@@ -105,7 +105,7 @@ pnpm run tauri build
 
 使用 ChatGPT  
 
-```bash
+```
 tauri開發 使用TypeScript&React&Rust
 ...
 ```
