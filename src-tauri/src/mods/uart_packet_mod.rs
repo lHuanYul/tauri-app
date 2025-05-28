@@ -49,7 +49,7 @@ impl UartPacket {
         format!(
             ">>> {}\n>>>   {:?}\n>>> {}",
             self.start as char,
-            self.data,
+            self.data.show(),
             self.end as char
         )
     }

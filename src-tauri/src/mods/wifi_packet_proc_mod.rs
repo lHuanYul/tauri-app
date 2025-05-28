@@ -1,19 +1,21 @@
 use std::{error::Error, mem};
 use log::{debug, info};
-use crate::mods::user_vec_mod::UserVecU8;
+use crate::mods::wifi_packet_mod::WifiPacket;
 
-pub const WIFI_PACKET_MAX_SIZE: usize = 1024;
+// .map_err(|e| -> Box<dyn Error> { e })?;
 
 #[derive(Debug)]
 pub struct WifiTrceBuffer {
-    packets: Vec<UserVecU8>,  // 真正的槽位 / storage for packets
-    max_length: usize,         // 最大槽位數 / maximum number of slots
+    packets: Vec<WifiPacket>,       // 真正的槽位 / storage for packets
+    max_pkt_length: usize,          // 最大槽位數 / maximum number of slots
+    _max_pkt_data_length: usize,
 }
 impl WifiTrceBuffer {
-    pub fn new(max_length: usize) -> Self {
+    pub fn new(max_pkt_length: usize, max_pkt_data_length: usize) -> Self {
         Self {
             packets: Vec::new(),
-            max_length,
+            max_pkt_length,
+            _max_pkt_data_length: max_pkt_data_length,
         }
     }
 
@@ -22,7 +24,7 @@ impl WifiTrceBuffer {
     }
 
     pub fn is_full(&self) -> bool {
-        self.packets.len() >= self.max_length
+        self.packets.len() >= self.max_pkt_length
     }
 
     pub fn is_empty(&self) -> bool {
@@ -31,29 +33,27 @@ impl WifiTrceBuffer {
 
     /// 將 UserVecU8 封包推入尾端；若容量已滿則回傳 Err
     /// Pushes a UserVecU8 packet to the end; returns Err if the buffer is full
-    pub fn push<T: AsRef<[u8]>>(&mut self, data: T) -> Result<(), Box<dyn Error>> {
+    pub fn push(&mut self, packet: WifiPacket) -> Result<(), Box<dyn Error>> {
         if self.is_full() {
-            return Err(format!("Buffer is full (max: {})", self.max_length).into());
+            return Err(format!("Buffer is full (max: {})", self.max_pkt_length).into());
         }
-        let mut packet = UserVecU8::new(WIFI_PACKET_MAX_SIZE);
-        packet.extend(data).map_err(|e| -> Box<dyn Error> { e })?;
         self.packets.push(packet);
         Ok(())
     }
 
     /// 從前端彈出並回傳 UserVecU8 封包；若為空則回傳 None
     /// Removes and returns the UserVecU8 packet at the front; returns None if empty
-    pub fn pop_front(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    pub fn pop_front(&mut self) -> Result<WifiPacket, Box<dyn Error + Send + Sync>> {
         if self.is_empty() {
             let message = format!("Buffer is empty");
             return Err(message.into());
         }
-        Ok(self.packets.remove(0).show())
+        Ok(self.packets.remove(0))
     }
 
     /// 取出所有封包並清空緩衝區
     /// Takes all packets and clears the buffer
-    pub fn take_all(&mut self) -> Vec<UserVecU8> {
+    pub fn take_all(&mut self) -> Vec<WifiPacket> {
         mem::take(&mut self.packets)
     }
 
