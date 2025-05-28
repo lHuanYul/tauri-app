@@ -2,13 +2,15 @@
 
 ## 1. pnpm 安裝
 
-### 網站 <https://pnpm.io/installation#prerequisites>
+### 網站 <https://pnpm.io/zh-TW/installation>
 
-#### 1. 在終端機
+#### 在終端機執行
 
 ```bash
-winget install -e --id pnpm.pnpm
+Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression
 ```
+
+或其他套件管理程式安裝則參考網站  
 
 ## 2. rust 安裝 ( 內自動安裝 cargo )
 
@@ -18,7 +20,7 @@ winget install -e --id pnpm.pnpm
 
 #### 1. 網站上下載 64bit 版本並執行
 
-#### 2. 在終端機
+#### 2. 在終端機執行
 
 1. 選擇 1 (Visual Studio)
 2. 等待下載
@@ -30,7 +32,7 @@ winget install -e --id pnpm.pnpm
 
 ### 創建步驟 ( 如果是從github上clone或下載 直接從步驟 3. 執行 )
 
-#### 1. 在終端機
+#### 1. 在終端機執行
 
 ```bash
 cd [專案資料夾所在位址]
@@ -49,7 +51,7 @@ Choose your package manager -> pnpm
 Choose your UI template -> Vanilla  
 Choose your UI flavor -> TypeScript  
 
-#### 3. 在終端機
+#### 3. 在終端機執行
 
 ```bash
 cd [專案資料夾]
