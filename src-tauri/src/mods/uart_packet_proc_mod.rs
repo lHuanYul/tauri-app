@@ -37,13 +37,15 @@ impl UartTrceBuffer {
         self.packets.len() >= self.max_length
     }
 
+    /// 檢查緩衝區是否為空<br>
+    /// Returns true if the buffer is empty
     pub fn is_empty(&self) -> bool {
         self.packets.is_empty()
     }
 
     /// 將封包推入尾端；若容量已滿則回傳 Err <br>
     /// Pushes a packet to the end; returns Err if the buffer is full
-    pub fn push(&mut self, packet: UartPacket) -> Result<(), Box<dyn Error>> {
+    pub fn push(&mut self, packet: UartPacket) -> Result<(), Box<dyn Error + Send + Sync>> {
         if self.is_full() {
             let message = format!("Buffer is full (max: {})", self.max_length);
             return Err(message.into());
@@ -52,7 +54,7 @@ impl UartTrceBuffer {
         Ok(())
     }
 
-    /// 從前端彈出並回傳封包；若為空則回傳 None <br>
+    // 從前端彈出並回傳封包；若為空則回傳 None <br>
     /// Removes and returns the packet at the front; returns None if empty
     pub fn pop_front(&mut self) -> Result<UartPacket, Box<dyn Error + Send + Sync>> {
         if self.is_empty() {
@@ -68,7 +70,8 @@ impl UartTrceBuffer {
         mem::take(&mut self.packets)
     }
 
-    /// 顯示前 n 個封包，不會從緩衝區移除
+    /// 顯示前 n 個封包，不會從緩衝區移除<br>
+    /// Shows the first n packets without removing them from the buffer
     pub fn show(&self, n: usize) {
         let count = self.packets.len().min(n);
         if n > count {
@@ -80,6 +83,8 @@ impl UartTrceBuffer {
     }
 }
 
+/// 生成 MCU 常量的 C 標頭檔案<br>
+/// Generates a C header file containing MCU constant definitions
 pub fn gen_h_file(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let global_state = app.state::<GlobalState>();
     let folder_path= {
@@ -116,6 +121,8 @@ pub fn gen_h_file(app: AppHandle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// 處理 UART 接收緩衝區的封包，依據命令碼執行對應動作，最多處理n筆<br>
+/// Processes up to n UART packets from the receive buffer and dispatches actions based on command codes
 pub async fn re_pkt_proccess(app: AppHandle) {
     let global_state = app.state::<GlobalState>();
     for _ in 0..10 {
@@ -135,6 +142,8 @@ pub async fn re_pkt_proccess(app: AppHandle) {
     }
 }
 
+/// 解析資料封包並將值存入全域狀態<br>
+/// Parses data packets and stores the extracted values into the global state
 async fn re_pkt_data_store(app: AppHandle, mut data: Vec<u8>) {
     let global_state = app.state::<GlobalState>();
     loop {

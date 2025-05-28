@@ -9,6 +9,7 @@ use crate::{mods::{log_mod::CODE_TRACE, uart_packet_mod::{self, UartPacket}}, Gl
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
 const   PORT_READ_TIMEOUT_US:       u64     = 10000;
+
 /// 最大接收緩衝區大小（包含起始與結尾碼）<br>
 /// Maximum receive buffer size (including start and end codes)
 const   MAX_RECEIVE_BUFFER_SIZE:    usize   = uart_packet_mod::UART_PACKET_MAX_SIZE;
@@ -21,8 +22,8 @@ pub struct UartAsyncManager {
     shutdown: Option<Sender<bool>>,  // 停止訊號傳送者／shutdown signal sender
 }
 impl UartAsyncManager {
-    /// 建立新管理器，尚未開啟任何埠 <br>
-    /// Creates a new manager with no open port
+    /// 建立新的 UART 非同步管理器，初始化讀寫緩衝<br>
+    /// Creates a new asynchronous UART manager and initializes read/write buffers
     pub fn new() -> Self {
         Self {
             port_name: None,
@@ -31,15 +32,15 @@ impl UartAsyncManager {
         }
     }
 
-    /// 列出所有可用序列埠資訊 <br>
-    /// Lists all available serial port infos asynchronously
+    /// 列舉所有可用序列埠<br>
+    /// Lists all available serial ports
     pub async fn available() -> Result<Vec<SerialPortInfo>, String> {
         let ports = available_ports().map_err(|e| {format!("Get available ports failed: {}", e)})?;
         Ok(ports)
     }
 
-    /// 開啟指定序列埠並啟動讀寫迴圈 <br>
-    /// Opens the specified port and starts the read/write loop
+    /// 開啟指定序列埠並設定波特率<br>
+    /// Opens the given serial port with the specified baud rate
     pub async fn open(
         &mut self,
         app: AppHandle,
@@ -63,8 +64,8 @@ impl UartAsyncManager {
         Ok(())
     }
 
-    /// 關閉目前序列埠，並停止讀寫迴圈 <br>
-    /// Closes the current port and stops the read/write loop
+    /// 關閉目前已開啟的序列埠<br>
+    /// Closes the currently opened serial port
     pub async fn close(&mut self) -> Result<(), String> {
         if let Some(shutdown_tx) = self.shutdown.take() {
             let _ = shutdown_tx.send(true);
@@ -76,8 +77,8 @@ impl UartAsyncManager {
         Ok(())
     }
 
-    /// 檢查序列埠是否已開啟<br>
-    /// Checks whether the port is currently open
+    /// 檢查序列埠是否仍然開啟<br>
+    /// Checks whether the serial port is still open
     pub async fn check_open(&self) -> Result<(), String> {
         self.inner.check_open().await
     }
@@ -138,6 +139,8 @@ impl UartAsyncManagerInner {
         Ok(packet)
     }
 
+    /// 啟動非同步讀取任務，將接收的 bytes 推入接收緩衝<br>
+    /// Starts the async read task, pushing received bytes into the receive buffer
     pub fn read_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
@@ -177,6 +180,8 @@ impl UartAsyncManagerInner {
         Ok(())
     }
 
+    /// 啟動非同步寫入任務，從傳輸緩衝取出封包並寫入埠口<br>
+    /// Starts the async write task, popping packets from the transmit buffer and writing them to the port
     pub fn write_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
@@ -204,8 +209,8 @@ impl UartAsyncManagerInner {
     }
 }
 
-/// 列出可用序列埠名稱 <br>
-/// Tauri command: list available port names
+/// Tauri 指令：列出可用序列埠<br>
+/// Tauri command: list available serial ports
 #[tauri::command]
 pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     let ports = UartAsyncManager::available().await?;
@@ -214,8 +219,8 @@ pub async fn cmd_available_port_async() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-/// 檢查序列埠是否已開啟 <br>
-/// Tauri command: check if port is open
+/// Tauri 指令：檢查序列埠是否開啟<br>
+/// Tauri command: check if the serial port is open
 #[tauri::command]
 pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     let global_state = app.state::<GlobalState>();
@@ -223,8 +228,8 @@ pub async fn cmd_check_port_open_async(app: AppHandle) -> bool {
     state.check_open().await.is_ok()
 }
 
-/// 開啟指定序列埠 <br>
-/// Tauri command: open specified port
+/// Tauri 指令：開啟序列埠<br>
+/// Tauri command: open the serial port
 #[tauri::command]
 pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
@@ -238,8 +243,8 @@ pub async fn cmd_open_port_async(app: AppHandle, port_name: String) -> Result<St
     Ok(_msg)
 }
 
-/// 關閉目前序列埠 <br>
-/// Tauri command: close current port
+/// Tauri 指令：關閉序列埠<br>
+/// Tauri command: close the serial port
 #[tauri::command]
 pub async fn cmd_close_port_async(app: AppHandle) -> Result<String, String> {
     let global_state = app.state::<GlobalState>();
