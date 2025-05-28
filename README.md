@@ -105,6 +105,8 @@ cd [專案資料夾]/src-tauri/
 pnpm run tauri build
 ```
 
+build 的檔案可由專案根目錄捷徑 .sc-bundle 前往  
+
 使用 ChatGPT  
 
 ```
