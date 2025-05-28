@@ -9,13 +9,13 @@ pub async fn cmd_send_spd_stop(app: AppHandle) -> Result<(), String> {
     cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_STOP.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_STOP.payload.to_vec());
-    let mut transfer_buffer = global_state.uart_traf_buffer.lock().await;
+    let mut transmit_buffer = global_state.uart_transmit_buffer.lock().await;
     let packet = UartPacket::new(cmd).map_err(|e| {
         let message = format!("{}", e);
         error!("{}", message);
         message
     })?;
-    transfer_buffer.push(packet).map_err(|e| format!("{}", e))?;
+    transmit_buffer.push(packet).map_err(|e| format!("{}", e))?;
     Ok(())
 }
 
@@ -26,13 +26,13 @@ pub async fn cmd_send_spd_once(app: AppHandle) -> Result<(), String> {
     cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_ONCE.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_ONCE.payload.to_vec());
-    let mut transfer_buffer = global_state.uart_traf_buffer.lock().await;
+    let mut transmit_buffer = global_state.uart_transmit_buffer.lock().await;
     let packet = UartPacket::new(cmd).map_err(|e| {
         let message = format!("{}", e);
         error!("{}", message);
         message
     })?;
-    transfer_buffer.push(packet).map_err(|e| format!("{}", e))?;
+    transmit_buffer.push(packet).map_err(|e| format!("{}", e))?;
     Ok(())
 }
 
@@ -43,12 +43,12 @@ pub async fn cmd_send_spd_start(app: AppHandle) -> Result<(), String> {
     cmd.push(mcu_const::CMD_CODE_DATA_TRRE);
     cmd.extend(mcu_const::CMD_RIGHT_SPEED_START.payload.to_vec());
     cmd.extend(mcu_const::CMD_RIGHT_ADC_START.payload.to_vec());
-    let mut transfer_buffer = global_state.uart_traf_buffer.lock().await;
+    let mut transmit_buffer = global_state.uart_transmit_buffer.lock().await;
     let packet = UartPacket::new(cmd).map_err(|e| {
         let message = format!("{}", e);
         error!("{}", message);
         message
     })?;
-    transfer_buffer.push(packet).map_err(|e| format!("{}", e))?;
+    transmit_buffer.push(packet).map_err(|e| format!("{}", e))?;
     Ok(())
 }

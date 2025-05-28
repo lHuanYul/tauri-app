@@ -178,7 +178,7 @@ impl WifiAsyncManagerInner {
                 if *shutdown.borrow() { break; }
                 let global_state = app_handle.state::<GlobalState>();
                 let maybe_pkt = {
-                    let mut state_buffer = global_state.wifi_tcp_traf_buf.lock().await;
+                    let mut state_buffer = global_state.wifi_tcp_transmit_buffer.lock().await;
                     state_buffer.pop_front()
                 };
                 let packet = if let Ok(pkt) = maybe_pkt {
@@ -215,7 +215,7 @@ impl WifiAsyncManagerInner {
                 if *shutdown.borrow() { break; }
                 let global_state = app_handle.state::<GlobalState>();
                 let maybe_pkt = {
-                    let mut state_buffer = global_state.wifi_udp_traf_buf.lock().await;
+                    let mut state_buffer = global_state.wifi_udp_transmit_buffer.lock().await;
                     state_buffer.pop_front()
                 };
                 let packet = if let Ok(pkt) = maybe_pkt {

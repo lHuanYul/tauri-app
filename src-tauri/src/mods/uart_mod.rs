@@ -161,7 +161,7 @@ impl UartAsyncManagerInner {
                 let packet = read_result.unwrap();
                 info!("Port read succeed:\n{}", packet.show());
                 let global_state = app_handle.state::<GlobalState>();
-                let mut state_buffer = global_state.uart_recv_buffer.lock().await;
+                let mut state_buffer = global_state.uart_receive_buffer.lock().await;
                 if let Err(e) = state_buffer.push(packet) {
                     error!("Packet store failed: {}", e);
                 }
@@ -190,7 +190,7 @@ impl UartAsyncManagerInner {
                 if *shutdown.borrow() { break; }
                 let global_state = app_handle.state::<GlobalState>();
                 let maybe_pkt = {
-                    let mut state_buffer = global_state.uart_traf_buffer.lock().await;
+                    let mut state_buffer = global_state.uart_transmit_buffer.lock().await;
                     state_buffer.pop_front()
                 };
                 let packet = if let Ok(pkt) = maybe_pkt {

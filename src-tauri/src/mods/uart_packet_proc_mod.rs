@@ -11,12 +11,12 @@ const CONST_RS_PATH: &str = include_str!(
 /// 由UartPacket組成的傳送接收緩存區，包含UartPacket及緩存區大小<br>
 /// Transmission/reception buffer composed of UartPacket elements, including the packets and buffer capacity
 #[derive(Debug)]
-pub struct UartTrceBuffer {
+pub struct UartTransceiveBuffer {
     packets: Vec<UartPacket>,  // 真正的槽位 / storage for packets
     max_length: usize,         // 最大槽位數 / maximum number of slots
 }
-impl UartTrceBuffer {
-    /// 建立 Transfer Buffer，並指定最大容量<br>
+impl UartTransceiveBuffer {
+    /// 建立 Transceive Buffer，並指定最大容量<br>
     /// Creates a new TrReBuffer with a specified maximum capacity
     pub fn new(max_length: usize) -> Self {
         Self {
@@ -127,7 +127,7 @@ pub async fn re_pkt_proccess(app: AppHandle) {
     let global_state = app.state::<GlobalState>();
     for _ in 0..10 {
         let maybe_pkt = {
-            let mut uart_recv_buffer = global_state.uart_recv_buffer.lock().await;
+            let mut uart_recv_buffer = global_state.uart_receive_buffer.lock().await;
             uart_recv_buffer.pop_front()
         };
         let mut data = match maybe_pkt {
