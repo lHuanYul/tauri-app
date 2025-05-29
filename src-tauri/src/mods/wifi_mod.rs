@@ -4,7 +4,7 @@ use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream, Udp
 use tauri::{AppHandle, Manager};
 use crate::{GlobalState, mods::wifi_packet_mod::{self, WifiPacket}};
 
-const _TARGET_IP: &str = "192.168.0.20";
+const TARGET_IP: IpAddr   = IpAddr::V4(Ipv4Addr::new(192, 168, 0, 20));
 const TCP_PORT: u16 = 60000;
 const UDP_PORT: u16 = 60001;
 
@@ -52,8 +52,8 @@ impl WifiAsyncManager {
         // 啟動背景 task
         self.inner.tcp_read_start(app.clone(), shutdown_rx.clone());
         self.inner.udp_read_start(app.clone(), shutdown_rx.clone());
-        self.inner.tcp_write_start(app.clone(), shutdown_rx.clone());
-        self.inner.udp_write_start(app, shutdown_rx);
+        self.inner.tcp_write_spawn(app.clone(), shutdown_rx.clone());
+        self.inner.udp_write_spawn(app, shutdown_rx);
         Ok(())
     }
 
@@ -80,7 +80,7 @@ impl WifiAsyncManagerInner {
         }
     }
 
-    async fn tcp_read_packet(&self) -> Result<WifiPacket, Box<dyn Error + Send + Sync>> {
+    async fn tcp_read(&self) -> Result<WifiPacket, Box<dyn Error + Send + Sync>> {
         let mut guard = self.tcp_listener.lock().await;
         let listener = if let Some(lsn) = guard.as_mut() {
             lsn
@@ -110,15 +110,25 @@ impl WifiAsyncManagerInner {
         tokio::spawn(async move {
             loop {
                 if *shutdown.borrow() { break; }
-                match arc_handle.tcp_read_packet().await {
-                    Ok(_) => todo!(),
-                    Err(_) => todo!(),
+                let read_result = arc_handle.tcp_read().await;
+                if let Err(ref e) = read_result {
+                    error!("{}", e);
+                    sleep(Duration::from_millis(10)).await;
+                    continue;
+                }
+                let packet = read_result.unwrap();
+                info!("Wifi tcp read succeed:\n{}", packet.show());
+                let global_state = app_handle.state::<GlobalState>();
+                let mut state_buffer = global_state.wifi_tcp_receive_buffer.lock().await;
+                if let Err(e) = state_buffer.push(packet) {
+                    error!("Packet store failed: {}", e);
+                    continue;
                 }
             }
         });
     }
 
-    async fn udp_read_packet(self: &Arc<Self>) -> Result<WifiPacket, Box<dyn Error + Send + Sync>> {
+    async fn udp_read(self: &Arc<Self>) -> Result<WifiPacket, Box<dyn Error + Send + Sync>> {
         let mut guard = self.udp_socket.lock().await;
         let socket = if let Some(skt) = guard.as_mut() {
             skt
@@ -143,15 +153,25 @@ impl WifiAsyncManagerInner {
         tokio::spawn(async move {
             loop {
                 if *shutdown.borrow() { break; }
-                match arc_handle.udp_read_packet().await {
-                    Ok(_) => todo!(),
-                    Err(_) => todo!(),
-                } 
+                let read_result = arc_handle.udp_read().await;
+                if let Err(ref e) = read_result {
+                    error!("{}", e);
+                    sleep(Duration::from_millis(10)).await;
+                    continue;
+                }
+                let packet = read_result.unwrap();
+                info!("Wifi udp read succeed:\n{}", packet.show());
+                let global_state = app_handle.state::<GlobalState>();
+                let mut state_buffer = global_state.wifi_tcp_receive_buffer.lock().await;
+                if let Err(e) = state_buffer.push(packet) {
+                    // error!("Packet store failed: {}", e);
+                    continue;
+                }
             }
         });
     }
 
-    async fn tcp_write_packet(&self, packet: WifiPacket) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn tcp_write(&self, packet: WifiPacket) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (target, data) =
             (SocketAddr::new(packet.target_ip(), TCP_PORT), packet.data());
         let connect = TcpStream::connect(target).await;
@@ -170,7 +190,7 @@ impl WifiAsyncManagerInner {
     }
 
     // spawn TCP 寫出迴圈，定時從 AppHandle 取得要發送的資料
-    fn tcp_write_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    fn tcp_write_spawn(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {
@@ -187,7 +207,7 @@ impl WifiAsyncManagerInner {
                     sleep(Duration::from_millis(10)).await;
                     continue;
                 };
-                if let Err(e) = arc_handle.tcp_write_packet(packet.clone()).await {
+                if let Err(e) = arc_handle.tcp_write(packet.clone()).await {
                     error!("TCP write failed: {}", e);
                     continue;
                 }
@@ -196,18 +216,18 @@ impl WifiAsyncManagerInner {
         });
     }
 
-    async fn udp_write_packet(&self, packet: WifiPacket) -> Result<usize, Box<dyn Error + Send + Sync>> {
+    async fn udp_write(&self, packet: WifiPacket) -> Result<usize, Box<dyn Error + Send + Sync>> {
         let guard = self.udp_socket.lock().await;
         if let Some(socket) = guard.as_ref() {
-            let (target, data) = (SocketAddr::new(packet.target_ip(), TCP_PORT), packet.data());
+            let (target, data) = (SocketAddr::new(packet.target_ip(), UDP_PORT), packet.data());
             socket.send_to(&data, target).await
-                .map_err(|e| format!("UDP send failed: {}", e).into())
+                .map_err(|e| e.into())
         } else {
             Err("UDP socket not initialized".into())
         }
     }
 
-    fn udp_write_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    fn udp_write_spawn(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {
@@ -224,8 +244,8 @@ impl WifiAsyncManagerInner {
                     sleep(Duration::from_millis(10)).await;
                     continue;
                 };
-                if let Err(e) = arc.udp_write_packet(packet.clone()).await {
-                    warn!("UDP send failed: {}", e);
+                if let Err(e) = arc.udp_write(packet.clone()).await {
+                    error!("UDP send failed: {}", e);
                 }
             }
         });
@@ -234,16 +254,26 @@ impl WifiAsyncManagerInner {
 
 #[tauri::command]
 pub async fn cmd_wifi_start(app: AppHandle) -> Result<String, String> {
-    let state = app.state::<GlobalState>();
-    let mut mgr = state.wifi_manager.lock().await;
+    let global_state = app.state::<GlobalState>();
+    let mut mgr = global_state.wifi_manager.lock().await;
     mgr.start(app.clone()).await.map_err(|e| e)?;
     Ok("WiFi listener started".into())
 }
 
 #[tauri::command]
+pub async fn cmd_wifi_transmie(app: AppHandle) -> Result<String, String> {
+    let global_state = app.state::<GlobalState>();
+    let packet = WifiPacket::new(TARGET_IP, "Hello from rust udp").unwrap();
+    let mut buffer = global_state.wifi_udp_transmit_buffer.lock().await;
+    let _ = buffer.push(packet);
+    info!("push fin");
+    Ok("Suc".into())
+}
+
+#[tauri::command]
 pub async fn cmd_wifi_stop(app: AppHandle) -> Result<String, String> {
-    let state = app.state::<GlobalState>();
-    let mut mgr = state.wifi_manager.lock().await;
+    let global_state = app.state::<GlobalState>();
+    let mut mgr = global_state.wifi_manager.lock().await;
     mgr.stop().await.map_err(|e| e)?;
     Ok("WiFi listener stopped".into())
 }

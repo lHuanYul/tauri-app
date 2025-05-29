@@ -59,8 +59,8 @@ impl UartAsyncManager {
         let (shutdown_tx, shutdown_rx) = channel(false);
         self.shutdown = Some(shutdown_tx.clone());
 
-        self.inner.read_start(app.clone(), shutdown_rx.clone());
-        self.inner.write_start(app.clone(), shutdown_rx);
+        self.inner.read_spawn(app.clone(), shutdown_rx.clone());
+        self.inner.write_spawn(app.clone(), shutdown_rx);
         Ok(())
     }
 
@@ -141,7 +141,7 @@ impl UartAsyncManagerInner {
 
     /// 啟動非同步讀取任務，將接收的 bytes 推入接收緩衝<br>
     /// Starts the async read task, pushing received bytes into the receive buffer
-    pub fn read_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    pub fn read_spawn(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {
@@ -182,7 +182,7 @@ impl UartAsyncManagerInner {
 
     /// 啟動非同步寫入任務，從傳輸緩衝取出封包並寫入埠口<br>
     /// Starts the async write task, popping packets from the transmit buffer and writing them to the port
-    pub fn write_start(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
+    pub fn write_spawn(self: &Arc<Self>, app: AppHandle, shutdown: Receiver<bool>) {
         let arc_handle = Arc::clone(self);
         let app_handle = app.clone();
         tokio::spawn(async move {

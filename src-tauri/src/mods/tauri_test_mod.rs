@@ -1,6 +1,6 @@
 use log::info;
 use tauri::{AppHandle, Manager};
-use crate::{mods::mcu_store_mod, GlobalState};
+use crate::{mods::{wifi_mod, mcu_store_mod}, GlobalState};
 
 #[tauri::command]
 pub async fn mytest(app: AppHandle) -> Result<(), String> {
@@ -15,7 +15,7 @@ pub async fn mytest(app: AppHandle) -> Result<(), String> {
     // let _ = packet_proc_mod::gen_h_file(app.clone()).map_err(|e| {
     //     error!("{}", e);
     // });
-    // let _ = wifi_mod::cmd_wifi_start(app.clone()).await;
+    let _ = wifi_mod::cmd_wifi_start(app.clone()).await;
     info!("Ok");
     Ok(())
 }

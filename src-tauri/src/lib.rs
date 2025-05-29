@@ -83,6 +83,7 @@ pub fn run() {
             mcu_control_mod::cmd_send_spd_once,
             mcu_control_mod::cmd_send_spd_start,
             wifi_mod::cmd_wifi_start,
+            wifi_mod::cmd_wifi_transmie,
             map_mod::map_load,
             map_mod::map_save,
             plotter_mod::chart_generate,

@@ -7,7 +7,7 @@ const WifiControlComp = () => {
 
     const serial_c = async () => {
         try {
-            const result = await invoke("cmd_wifi_test");
+            const result = await invoke("cmd_wifi_transmie");
             setResponse(result as string);
         } catch (error: any) {
             setResponse(`錯誤：${error}`);
