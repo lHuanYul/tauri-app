@@ -11,9 +11,9 @@ fn main() {
         .flag_if_supported("-std=c11")
         .compile(CLIB);
 
-    println!("cargo:rustc-link-lib=libeng");   // engine API
-    println!("cargo:rustc-link-lib=libmx");    // matrix API
-    println!("cargo:rustc-link-search=C:/Program Files/MATLAB/R2024b/extern/lib/win64/microsoft");
+    // println!("cargo:rustc-link-lib=libeng");   // engine API
+    // println!("cargo:rustc-link-lib=libmx");    // matrix API
+    // println!("cargo:rustc-link-search=C:/Program Files/MATLAB/R2024b/extern/lib/win64/microsoft");
 
     tauri_build::build()
 }

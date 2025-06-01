@@ -1,9 +1,10 @@
 use libloading::{Library, Symbol};
 use libc::{c_char, c_double, c_int};
 use log::{debug, error, info};
-use std::{error::Error, ffi::{c_void, CStr, CString}, ptr};
-use crate::{mods::directory_mod::{create_file, path_to_string}, MATLAB_LIBENG_DLL_PATH};
+use std::{error::Error, ffi::{c_void, CStr, CString}, path::Path, ptr};
+use crate::{mods::directory_mod::{create_file, path_to_string}};
 
+pub const MATLAB_LIBENG_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win64/libeng.dll";
 const MATLAB_LIBMX_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win64/libmx.dll";
 const CHARTS_FOLDER_PATH: &str = "./generate/chart";
 
@@ -35,8 +36,8 @@ pub struct MatlabEngine {
 
 impl MatlabEngine {
     pub fn new() -> Self {
-        info!("嘗試動態載入 MATLAB 引擎庫…");
-        let mut me = MatlabEngine {
+        info!("Trying to load MATLAB engine");
+        let mut engine = MatlabEngine {
             eng_lib: None,
             mx_lib: None,
             eng_open: None,
@@ -48,6 +49,13 @@ impl MatlabEngine {
             engine: ptr::null_mut(),
             enabled: false,
         };
+        if !Path::new(MATLAB_LIBENG_DLL_PATH).exists() {
+            info!(
+                "找不到 MATLAB Engine 動態庫（{}），跳過 MATLAB 功能初始化",
+                MATLAB_LIBENG_DLL_PATH
+            );
+            return engine;
+        }
         // 載入引擎庫 libeng.dll
         match unsafe { Library::new(MATLAB_LIBENG_DLL_PATH) } {
             Ok(lib) => {
@@ -58,15 +66,22 @@ impl MatlabEngine {
                     let eng_get_var_sym: Symbol<EngGetVarFn> = lib.get(b"engGetVariable\0").expect("找不到 engGetVariable");
                     (*eng_open_sym, *eng_set_visible_sym, *eng_eval_string_sym, *eng_get_var_sym)
                 };
-                me.eng_lib = Some(lib);
-                me.eng_open = Some(open_fn);
-                me.eng_set_visible = Some(set_vis_fn);
-                me.eng_eval_string = Some(eval_fn);
-                me.eng_get_var = Some(get_var_fn);
+                engine.eng_lib = Some(lib);
+                engine.eng_open = Some(open_fn);
+                engine.eng_set_visible = Some(set_vis_fn);
+                engine.eng_eval_string = Some(eval_fn);
+                engine.eng_get_var = Some(get_var_fn);
             }
             Err(e) => {
                 error!("載入 libeng.dll 失敗，MATLAB 功能將略過：  {}", e);
             }
+        }
+        if !Path::new(MATLAB_LIBMX_DLL_PATH).exists() {
+            info!(
+                "找不到 MATLAB MEX 動態庫（{}），跳過 MEX 功能",
+                MATLAB_LIBMX_DLL_PATH
+            );
+            return engine;
         }
         // 載入資料庫 libmx.dll
         match unsafe { Library::new(MATLAB_LIBMX_DLL_PATH) } {
@@ -76,29 +91,29 @@ impl MatlabEngine {
                     let mx_get_pr_sym: Symbol<MxGetPrFn> = lib.get(b"mxGetPr\0").expect("找不到 mxGetPr");
                     (*mx_get_string_sym, *mx_get_pr_sym)
                 };
-                me.mx_lib = Some(lib);
-                me.mx_get_string = Some(get_str_fn);
-                me.mx_get_pr = Some(get_pr_fn);
+                engine.mx_lib = Some(lib);
+                engine.mx_get_string = Some(get_str_fn);
+                engine.mx_get_pr = Some(get_pr_fn);
             }
             Err(e) => {
                 error!("載入 libmx.dll 失敗，MATLAB 功能將略過：  {}", e);
             }
         }
         // 初始化引擎
-        if let Some(open_fn) = me.eng_open {
+        if let Some(open_fn) = engine.eng_open {
             let eng = unsafe { open_fn(ptr::null()) };
             if eng.is_null() {
                 error!("engOpen 回傳 null，MATLAB 功能停用");
             } else {
-                me.engine = eng;
-                me.enabled = true;
-                if let Some(set_vis_fn) = me.eng_set_visible {
+                engine.engine = eng;
+                engine.enabled = true;
+                if let Some(set_vis_fn) = engine.eng_set_visible {
                     unsafe { set_vis_fn(eng, 0); }
                 }
                 info!("成功啟動 MATLAB 引擎");
             }
         }
-        me
+        engine
     }
 
     /// 在引擎不可用時跳過執行

@@ -35,7 +35,6 @@ pub const ROOT_GEN_FILES_FOLDER: &str = "generate";
 pub const BASE_GEN_FILES_FOLDER: &str = "base";
 pub const MAP_GEN_FILES_FOLDER: &str = "map";
 pub const GENERATE_BASE_FOLDER_PATH: &str = "generate_base";
-pub const MATLAB_LIBENG_DLL_PATH: &str = "C:/Program Files/MATLAB/R2024b/bin/win64/libeng.dll";
 
 pub struct GlobalState {
     pub root_path:                  SyncMutex <PathBuf>,

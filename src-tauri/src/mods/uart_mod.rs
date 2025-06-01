@@ -8,7 +8,7 @@ use crate::{mods::{log_mod::CODE_TRACE, uart_packet_mod::{self, UartPacket}}, Gl
 
 /// 非同步讀取單一位元組的超時值（µs）<br>
 /// Default timeout for each byte read in µs
-const   PORT_READ_TIMEOUT_US:       u64     = 10000;
+const   UART_READ_TIMEOUT_MS:       u64     = 10;
 
 /// 最大接收緩衝區大小（包含起始與結尾碼）<br>
 /// Maximum receive buffer size (including start and end codes)
@@ -118,7 +118,7 @@ impl UartAsyncManagerInner {
         let mut buffer: Vec<u8> = Vec::with_capacity(MAX_RECEIVE_BUFFER_SIZE);
         for _ in 0..MAX_RECEIVE_BUFFER_SIZE {
             match timeout(
-                Duration::from_micros(PORT_READ_TIMEOUT_US),
+                Duration::from_millis(UART_READ_TIMEOUT_MS),
                 reader.read_u8(),
             ).await {
                 Ok(Ok(byte)) => {
